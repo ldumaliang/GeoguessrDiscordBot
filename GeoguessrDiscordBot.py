@@ -1,13 +1,11 @@
 from database import Database
-import urllib.request
 import sqlite3
 import json
 import sched
 import time
 import configparser
-#from discord.ext import commands, tasks
+import requests
 
-#bot = commands.Bot(command_prefix='!')
 db = Database()
 
 conn = sqlite3.connect('geoguessr.db')
@@ -15,34 +13,37 @@ cursor = conn.cursor()
 
 geoguessr_base_url = 'https://geoguessr.com/api'
 
-#@bot.event
-#async def on_ready():
-#    check_endpoints.start()  # Start the background task
-
-#@tasks.loop(seconds=5.0)  # Adjust the interval as needed
-
 def get_daily_challenge_token():
     daily_challenge_endpoint = '/v3/challenges/daily-challenges/today'
 
     # Get the current daily challenge token
     daily_challenge_url = f'{geoguessr_base_url}{daily_challenge_endpoint}'
-    contents = urllib.request.urlopen(daily_challenge_url).read()
-    data = json.loads(contents)
-    token = data['token']
+    response = requests.get(daily_challenge_url).json()
+    token = response.get('token')
 
     # Print the token to the console
     print(token)
     return token
 
-def check_for_new_results(token):
+def check_for_new_results(challenge_token, ncfa_token):
     results_endpoint = '/v3/results/highscores/'
     results_flags = '?friends=true'
-    daily_challenge_results_url = f'{geoguessr_base_url}{results_endpoint}{token}{results_flags}'
+
+    daily_challenge_results_url = f'{geoguessr_base_url}{results_endpoint}{challenge_token}{results_flags}'
+    print(daily_challenge_results_url)
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+        'Content-Type': 'application/json'
+    }
+
+    session = requests.Session()
+    session.cookies.set("_ncfa", ncfa_token, domain="www.geoguessr.com")
 
     # Get the daily challenge results
-    daily_challenge_results_contents = urllib.request.urlopen(daily_challenge_results_url).read()
-    daily_challenge_results_data = json.loads(daily_challenge_results_contents)
-    for item in daily_challenge_results_data['items']:
+    daily_challenge_results_contents = session.get(daily_challenge_results_url, headers=headers)
+
+    for item in daily_challenge_results_contents['items']:
         print(item['playerName'], item['totalScore'])
 
 
@@ -65,19 +66,21 @@ def sign_in():
         'password': password
     }
 
-    sign_in_data = json.dumps(sign_in_data).encode('utf-8')
-    sign_in_request = urllib.request.Request(sign_in_url, data=sign_in_data, headers={'Content-Type': 'application/json'})
-    sign_in_response = urllib.request.urlopen(sign_in_request)
-    sign_in_contents = sign_in_response.read()
-    sign_in_data = json.loads(sign_in_contents)
+    headers = {'Content-Type': 'application/json'}
+    sign_in_response = requests.post(sign_in_url, json=sign_in_data, headers=headers)
+
+    # Get the ncfa_token from the response
+    cookie_jar = sign_in_response.cookies
+    ncfa_token = cookie_jar.get('_ncfa')
 
     # Throw exception if sign_in_response status is not 200
-    if sign_in_response.status != 200:
-        raise Exception(f'Failed to sign in: {sign_in_data["message"]}')
+    if sign_in_response.status_code != 200:
+        raise Exception(f'Failed to sign in: {sign_in_response.status_code}')
+    
+    print(ncfa_token)
+    return ncfa_token
 
 
-sign_in()
-token = get_daily_challenge_token()  # Run the function once to get the current daily challenge token
-check_for_new_results(token)
-
-# bot.run('your-bot-token')
+ncfa_token = sign_in()
+challenge_token = get_daily_challenge_token()  # Run the function once to get the current daily challenge token
+check_for_new_results(challenge_token, ncfa_token)  # Run the function once to get the current daily challenge results
