@@ -12,12 +12,20 @@ conn = sqlite3.connect('geoguessr.db')
 cursor = conn.cursor()
 
 geoguessr_base_url = 'https://geoguessr.com/api'
+BASE_V3_URL = "https://www.geoguessr.com/api/v3/"  # Base URL for all V3 endpoints
+BASE_V4_URL = "https://www.geoguessr.com/api/v4/"  # Base URL for all V4 endpoints
 
 def get_daily_challenge_token():
-    daily_challenge_endpoint = '/v3/challenges/daily-challenges/today'
+    """
+    Retrieves the token for the current daily challenge.
+
+    Returns:
+        str: The token for the current daily challenge.
+    """
+    daily_challenge_endpoint = 'challenges/daily-challenges/today'
 
     # Get the current daily challenge token
-    daily_challenge_url = f'{geoguessr_base_url}{daily_challenge_endpoint}'
+    daily_challenge_url = f'{BASE_V3_URL}{daily_challenge_endpoint}'
     response = requests.get(daily_challenge_url).json()
     token = response.get('token')
 
@@ -25,35 +33,42 @@ def get_daily_challenge_token():
     print(token)
     return token
 
-def check_for_new_results(challenge_token, ncfa_token):
-    results_endpoint = '/v3/results/highscores/'
-    results_flags = '?friends=true'
+def check_for_new_results(challenge_token, session):
+    """
+    Retrieves the daily challenge results from Geoguessr API.
 
-    daily_challenge_results_url = f'{geoguessr_base_url}{results_endpoint}{challenge_token}{results_flags}'
-    print(daily_challenge_results_url)
+    Args:
+        challenge_token (str): The token of the challenge.
+        ncfa_token (str): The token for authentication.
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-        'Content-Type': 'application/json'
-    }
+    Returns:
+        None
+    """
+    results_endpoint = 'results/highscores/'
+    results_flags = '?friends=true&limit=26&minRounds=5'
 
-    session = requests.Session()
-    session.cookies.set("_ncfa", ncfa_token, domain="www.geoguessr.com")
 
     # Get the daily challenge results
-    daily_challenge_results_contents = session.get(daily_challenge_results_url, headers=headers)
+    daily_challenge_results = session.get(f"{BASE_V3_URL}{results_endpoint}{challenge_token}{results_flags}").json()
 
-    for item in daily_challenge_results_contents['items']:
+    for item in daily_challenge_results['items']:
         print(item['playerName'], item['totalScore'])
 
-
 def sign_in():
+    """
+    Signs into Geoguessr using the provided credentials.
+
+    Returns:
+        str: The ncfa_token obtained from the sign-in response.
+
+    Raises:
+        Exception: If the sign-in request fails with a non-200 status code.
+    """
     # Geoguessr endpoint static values
-    geoguessr_base_url = 'https://geoguessr.com/api'
-    sign_in_endpoint = '/v3/accounts/signin'
+    sign_in_endpoint = 'accounts/signin'
 
     # Sign into Geoguessr
-    sign_in_url = f'{geoguessr_base_url}{sign_in_endpoint}'
+    sign_in_url = f'{BASE_V3_URL}{sign_in_endpoint}'
 
     # Parse credentials from file
     config = configparser.ConfigParser()
@@ -80,7 +95,40 @@ def sign_in():
     print(ncfa_token)
     return ncfa_token
 
+def update_friends(session):
+    """
+    Updates the users in the database with their Geoguessr usernames.
+
+    Args:
+        session (object): The session object for making HTTP requests.
+
+    Returns:
+        None
+    """
+    friends_endpoints = 'social/friends/summary'
+    users_results = session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
+
+    #conn.execute("SELECT * FROM Users")
+    #user_rows = cursor.fetchall()
+
+    for user in users_results['friends']:
+        # Check if the user is already in the database
+        cursor.execute("SELECT * FROM Users WHERE GeoId = ?", (user['userId'],))
+        user_row = cursor.fetchone()
+
+        # Add user if it doesn't exist
+        if user_row is None:
+            user_data = (user['userId'], user['nick'], user['nick'])
+            cursor.execute("INSERT INTO Users (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
+            conn.commit()
 
 ncfa_token = sign_in()
+
+# Create a session object and set the _ncfa cookie
+session = requests.Session()
+session.cookies.set("_ncfa", ncfa_token, domain="www.geoguessr.com")
+
+update_friends(session)
+
 challenge_token = get_daily_challenge_token()  # Run the function once to get the current daily challenge token
-check_for_new_results(challenge_token, ncfa_token)  # Run the function once to get the current daily challenge results
+check_for_new_results(challenge_token, session)  # Run the function once to get the current daily challenge results

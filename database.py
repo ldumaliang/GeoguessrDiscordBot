@@ -1,16 +1,31 @@
 import sqlite3
+import logging
 
 class Database:
     def __init__(self, db_name='geoguessr.db'):
+        """
+        Initializes a Database object.
+
+        Parameters:
+        - db_name (str): The name of the database file. Default is 'geoguessr.db'.
+        """
         self.conn = sqlite3.connect(db_name)
         self.c = self.conn.cursor()
-        self.setup()
+        try:
+            self.setup()
+        except Exception as e:
+            logging.error(f"Error occurred in Database initialization: {e}")
 
     def setup(self):
+        """
+        Sets up the database by creating the necessary tables if they don't exist.
+        """
         # Create Users table
         self.c.execute('''
             CREATE TABLE IF NOT EXISTS Users (
-                UserID INTEGER PRIMARY KEY,
+                UserId INTEGER PRIMARY KEY,
+                GeoId TEXT,
+                GeoName TEXT,
                 DiscordName TEXT
             )
         ''')
@@ -40,4 +55,7 @@ class Database:
         self.conn.commit()
 
     def close(self):
+        """
+        Closes the database connection.
+        """
         self.conn.close()
