@@ -1,3 +1,5 @@
 credentials.ini
 .vscode/launch.json
 geoguessr.db
+.env
+discord.log
