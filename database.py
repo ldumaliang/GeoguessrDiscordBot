@@ -34,8 +34,8 @@ class Database:
         self.c.execute('''
             CREATE TABLE IF NOT EXISTS Challenge (
                 ChallengeID INTEGER PRIMARY KEY,
-                ChallengeToken TEXT
                 Time TIMESTAMP,
+                ChallengeToken TEXT
             )
         ''')
 
