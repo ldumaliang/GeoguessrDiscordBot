@@ -23,3 +23,9 @@ Create a file called `credentials.ini` with data in the following format:
     [CREDENTIALS]
     Username: 'your username' 
     Password: 'your password'
+
+### .env
+
+Create a file called `.env` with data in the following format:
+
+    DISCORD_TOKEN='your discord bot token' 

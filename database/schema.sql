@@ -3,13 +3,14 @@ CREATE TABLE IF NOT EXISTS Users (
     GeoId TEXT,
     GeoName TEXT,
     DiscordName TEXT
-)
+);
 
 CREATE TABLE IF NOT EXISTS Challenge (
     ChallengeID INTEGER PRIMARY KEY,
     Time TIMESTAMP,
     ChallengeToken TEXT
-)
+);
+
 CREATE TABLE IF NOT EXISTS UserDailyResult (
     UserDailyID INTEGER PRIMARY KEY,
     UserID INTEGER,
@@ -17,4 +18,4 @@ CREATE TABLE IF NOT EXISTS UserDailyResult (
     ChallengeID INTEGER,
     FOREIGN KEY(UserID) REFERENCES Users(UserID),
     FOREIGN KEY(ChallengeID) REFERENCES Challenge(ChallengeID)
-)
+);
