@@ -20,9 +20,8 @@ class GeoguessrDiscordBot(commands.Bot):
 
     async def on_ready(self):
         print(f'We have logged in as {self.user}')
-        #my_background_task.start(self)
-        get_daily_challenge.start(self)
-        check_daily_results.start(self)
+        get_daily_challenge_loop.start(self)
+        check_daily_results_loop.start(self)
 
     async def on_message(self, message):
         print(message.content)
@@ -122,7 +121,7 @@ async def clear_commands(ctx):
 @bot.command()
 async def update_daily(ctx):
     print("Update Daily Challenge token")
-    geo_query.get_daily_challenge_token()
+    await get_daily_challenge()
 
 @bot.command()
 async def update_friends(ctx):
@@ -155,14 +154,17 @@ async def enable(ctx):
     print(f"Enabling bot for channel: {channel_name} with id: {channel_id}")
 
 @tasks.loop(time=midnight)
-async def get_daily_challenge(self):
+async def get_daily_challenge_loop(self):
+    await get_daily_challenge()
+
+async def get_daily_challenge():
     # get the daily challenge
     print("getting daily challenge")
     success = geo_query.get_daily_challenge_token()
     if success is False:
-        retry_daily_challenge.start(self)
+        retry_daily_challenge.start(bot)
     else:
-        create_thread()
+        await create_thread()
 
 @tasks.loop(minutes=1)
 async def retry_daily_challenge(self):
@@ -174,14 +176,20 @@ async def retry_daily_challenge(self):
 
 
 @tasks.loop(seconds=5)
-async def check_daily_results(self):
+async def check_daily_results_loop(self):
     # check the daily results
     print("checking daily results")
     new_results = geo_query.check_for_new_results()
     for result in new_results:
+        discord_mention = ''
+        if result[3] is not None:
+            discord_user = await self.fetch_user(result[3])
+            discord_mention = discord_user.mention
+        else:
+            discord_mention = result[0]
         # send a message to a specific thread
         if bot.todays_thread is not None:
-            await bot.todays_thread.send(f"New result: User - {result[0]} scored - {result[1]} points!")
+            await bot.todays_thread.send(f"New result: {discord_mention} scored - {result[1]} points!")
 
 
 # Run the client

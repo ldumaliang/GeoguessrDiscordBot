@@ -78,23 +78,6 @@ class GeoguessrQueries:
 
             new_results = []
 
-            #for item in daily_challenge_data.get('friends', []):
-            #    # Check if the current user has already submitted a score for the daily challenge
-            #    try:
-            #        user = db.get_user_by_geo_id(item['id'])
-            #        user_daily_result = db.get_user_daily_result(user[0], challenge_id)
-            #        user_geo_name = user[1]
-
-            #        # If the user has not submitted a score, insert the score into the UserDailyResult table
-            #        if user_daily_result is None or len(user_daily_result) == 0:
-            #            new_user_daily_result = (user[0], item['totalScore'], challenge_id)
-            #            db.add_user_daily_result(*new_user_daily_result)
-            #            new_user_daily_result[0] = user_geo_name
-            #            new_results.append(new_user_daily_result)
-            #            print("Added: ", item['nick'], item['totalScore'])
-            #    except Exception as e:
-            #        print(f"Error occurred: {e}")
-
             for item in daily_challenge_data.get('friends', []):
                 try:
                     user_id = item['id']
@@ -103,7 +86,7 @@ class GeoguessrQueries:
                         print(f"No user found with id: {user_id}")
                         continue
 
-                    user_id, _, user_geo_name, _, _ = user
+                    user_id, _, user_geo_name, _, discord_id = user
                     user_daily_result = db.get_user_daily_result(user_id, challenge_id)
 
                     # If the user has not submitted a score, insert the score into the UserDailyResult table
@@ -111,7 +94,7 @@ class GeoguessrQueries:
                         total_score = item['totalScore']
                         new_user_daily_result = (user_id, total_score, challenge_id)
                         db.add_user_daily_result(*new_user_daily_result)
-                        new_results.append((user_geo_name, total_score, challenge_id))
+                        new_results.append((user_geo_name, total_score, challenge_id, discord_id))
                         print(f"Added: {item['nick']} {total_score}")
                 except Exception as e:
                     print(f"Error occurred: {e}")

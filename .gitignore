@@ -3,3 +3,4 @@ credentials.ini
 geoguessr.db
 .env
 discord.log
+__pycache__/
