@@ -83,7 +83,7 @@ class GeoguessrDatabase:
             tuple: A tuple containing the user's information.
         """
         try:
-            self.c.execute("SELECT * FROM Users WHERE GeoId = ?", (geo_id,))
+            self.c.execute("SELECT * FROM User WHERE GeoId = ?", (geo_id,))
             user = self.c.fetchone()
             return user
         except Exception as e:
@@ -100,7 +100,7 @@ class GeoguessrDatabase:
             tuple: A tuple containing the user's information.
         """
         try:
-            self.c.execute("SELECT * FROM Users WHERE DiscordId = ?", (discord_id,))
+            self.c.execute("SELECT * FROM User WHERE DiscordId = ?", (discord_id,))
             user = self.c.fetchone()
             return user
         except Exception as e:
@@ -137,7 +137,7 @@ class GeoguessrDatabase:
             tuple: A tuple containing the user's daily result for the specific challenge.
         """
         try:
-            self.c.execute("SELECT * FROM UserDailyResult WHERE UserID = (SELECT UserID FROM Users WHERE GeoId = ?) AND ChallengeID = ?", (geo_id, challenge_id))
+            self.c.execute("SELECT * FROM UserDailyResult WHERE UserID = (SELECT UserID FROM User WHERE GeoId = ?) AND ChallengeID = ?", (geo_id, challenge_id))
             user_daily_result = self.c.fetchone()
             return user_daily_result
         except Exception as e:
@@ -166,7 +166,7 @@ class GeoguessrDatabase:
         Returns:
             list: A list of tuples, each containing the data for one user.
         """
-        self.c.execute("SELECT * FROM Users")
+        self.c.execute("SELECT * FROM User")
         return self.c.fetchall()
 
     def get_all_daily_results(self):
@@ -200,7 +200,7 @@ class GeoguessrDatabase:
         - bool: True if the Discord ID was successfully set, False otherwise.
         """
         try:
-            self.c.execute("UPDATE Users SET DiscordId = ?, DiscordName = ? WHERE GeoName = ? AND (DiscordId IS NULL OR DiscordId = '')", (discord_id, discord_name, geo_name))
+            self.c.execute("UPDATE User SET DiscordId = ?, DiscordName = ? WHERE GeoName = ? AND (DiscordId IS NULL OR DiscordId = '')", (discord_id, discord_name, geo_name))
             self.conn.commit()
             if self.c.rowcount != 0:
                 return True

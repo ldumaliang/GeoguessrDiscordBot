@@ -28,7 +28,8 @@ Create a file called `credentials.ini` with data in the following format:
 
 Create a file called `.env` with data in the following format:
 
-    DISCORD_TOKEN='your discord bot token' 
+    DISCORD_TOKEN='your discord bot token'
+    GUILD_ID='your guild id'
 
 ## Discord Bot
 

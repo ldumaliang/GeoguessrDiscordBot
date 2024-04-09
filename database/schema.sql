@@ -17,6 +17,6 @@ CREATE TABLE IF NOT EXISTS UserDailyResult (
     UserID INTEGER,
     Score INTEGER,
     ChallengeID INTEGER,
-    FOREIGN KEY(UserID) REFERENCES Users(UserID),
+    FOREIGN KEY(UserID) REFERENCES User(UserID),
     FOREIGN KEY(ChallengeID) REFERENCES Challenge(ChallengeID)
 );
