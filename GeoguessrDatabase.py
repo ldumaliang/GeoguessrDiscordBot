@@ -50,8 +50,13 @@ class GeoguessrDatabase:
                 # Insert the daily challenge token into the Challenge table with the current timestamp
                 self.c.execute("INSERT INTO Challenge (ChallengeToken, Time) VALUES (?, datetime('now'))", (token,))
                 self.conn.commit()
+                return True
+            else:
+                print("Challenge token already exists")
+                return False
         except Exception as e:
             logging.error(f"Error occurred in updating challenge token: {e}")
+            return False
     
     # Get todays challenge id and challenge token
     def get_todays_challenge(self):

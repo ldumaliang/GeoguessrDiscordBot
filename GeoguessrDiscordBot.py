@@ -16,6 +16,7 @@ class GeoguessrDiscordBot(commands.Bot):
         intents = intents
         intents.message_content = True
         self.message_channel = None
+        self.todays_thread = None
 
     async def on_ready(self):
         print(f'We have logged in as {self.user}')
@@ -88,12 +89,15 @@ def get_user_list_embed(successfully_registered=False):
         embed.set_footer(text="Usage: /register 'Geoguessr Name'", icon_url="attachment://icon.png")
     else:
         embed.set_footer(icon_url="attachment://icon.png")
+    
+    return embed
 
-@bot.command()
-async def create_thread(ctx, name):
-    thread = await ctx.channel.create_thread(name=name, message="New Thread!", auto_archive_duration=1440)
-    await thread.send('This is the first message in the thread!')
-    await ctx.send(f'Thread created: {thread.mention}')
+async def create_thread():
+    # Get today's UTC date in a human-readable format
+    today = datetime.datetime.now(tz).strftime("%m-%d-%Y")
+
+    bot.todays_thread = await bot.message_channel.create_thread(name=today, type=discord.ChannelType.public_thread, auto_archive_duration=1440, reason=None )
+    await bot.todays_thread.send(f'Spoiler thread for {today} Geoguessr Daily')
 
 @bot.command()
 async def sync_commands(ctx):
@@ -150,19 +154,24 @@ async def enable(ctx):
 
     print(f"Enabling bot for channel: {channel_name} with id: {channel_id}")
 
-
-@tasks.loop(seconds=5)
-async def my_background_task(self):
-    # send a message to a specific channel
-    print("sending message to channel")
-    if self.message_channel is not None:
-        await self.message_channel.send('Hello!')
-
 @tasks.loop(time=midnight)
 async def get_daily_challenge(self):
     # get the daily challenge
     print("getting daily challenge")
-    geo_query.get_daily_challenge_token()
+    success = geo_query.get_daily_challenge_token()
+    if success is False:
+        retry_daily_challenge.start(self)
+    else:
+        create_thread()
+
+@tasks.loop(minutes=1)
+async def retry_daily_challenge(self):
+    # retry getting the daily challenge
+    print("retrying daily challenge")
+    success = geo_query.get_daily_challenge_token()
+    if success is True:
+        retry_daily_challenge.stop()
+
 
 @tasks.loop(seconds=5)
 async def check_daily_results(self):
@@ -170,9 +179,9 @@ async def check_daily_results(self):
     print("checking daily results")
     new_results = geo_query.check_for_new_results()
     for result in new_results:
-        # send a message to a specific channel
-        if self.message_channel is not None:
-            await self.message_channel.send(f"New result: User - {result[0]} scored - {result[1]} points!")
+        # send a message to a specific thread
+        if bot.todays_thread is not None:
+            await bot.todays_thread.send(f"New result: User - {result[0]} scored - {result[1]} points!")
 
 
 # Run the client

@@ -49,10 +49,11 @@ class GeoguessrQueries:
         response = requests.get(daily_challenge_url).json()
         token = response.get('token')
 
-        db.update_challenge_token(token)
+        success = db.update_challenge_token(token)
 
         # Print the token to the console
         print("Challenge Token:", token)
+        return success
     
     def check_for_new_results(self) -> list:
             """
