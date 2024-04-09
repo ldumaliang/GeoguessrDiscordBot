@@ -29,3 +29,7 @@ Create a file called `credentials.ini` with data in the following format:
 Create a file called `.env` with data in the following format:
 
     DISCORD_TOKEN='your discord bot token' 
+
+## Discord Bot
+
+Required Permissions = 17998732324080

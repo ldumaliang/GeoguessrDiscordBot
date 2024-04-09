@@ -137,3 +137,33 @@ class GeoguessrDatabase:
             self.conn.commit()
         except Exception as e:
             logging.error(f"Error occurred in adding user's daily result: {e}")
+    
+    def get_all_users(self):
+        """
+        Retrieves all users from the database.
+
+        Returns:
+            list: A list of tuples, each containing the data for one user.
+        """
+        self.c.execute("SELECT * FROM Users")
+        return self.c.fetchall()
+
+    def get_all_daily_results(self):
+        """
+        Retrieves all daily results from the database.
+
+        Returns:
+            list: A list of tuples, each containing the data for one daily result.
+        """
+        self.c.execute("SELECT * FROM UserDailyResult")
+        return self.c.fetchall()
+
+    def get_all_challenges(self):
+        """
+        Retrieves all challenges from the database.
+
+        Returns:
+            list: A list of tuples, each containing the data for one challenge.
+        """
+        self.c.execute("SELECT * FROM Challenges")
+    

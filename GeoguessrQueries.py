@@ -32,7 +32,7 @@ class GeoguessrQueries:
         Updates the session with the necessary authentication token.
         """
         #self.ncfa_token = self._sign_in()
-        self.ncfa_token = "SWDLGJatbL4N5GD7Pj4wIofFcKBz7rX%2FduuG%2F%2FQrSQE%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWep35nvDmJc3F99Z2YT9m3o%3D"
+        self.ncfa_token = "jd%2BaOjXEcY2vg7V2ERhTuKpaCPcRPKjqmbvotDVrPJM%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWZMdjr0eHHDgT1%2BPNfkQNCs%3D"
         self.session = requests.Session()
         self.session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
 
@@ -102,7 +102,7 @@ class GeoguessrQueries:
                         print(f"No user found with id: {user_id}")
                         continue
 
-                    user_id, user_geo_name, _, _ = user
+                    user_id, _, user_geo_name, _ = user
                     user_daily_result = db.get_user_daily_result(user_id, challenge_id)
 
                     # If the user has not submitted a score, insert the score into the UserDailyResult table
@@ -180,13 +180,20 @@ class GeoguessrQueries:
         }
 
         headers = {'Content-Type': 'application/json'}
-        sign_in_response = requests.post(sign_in_url, json=sign_in_data, headers=headers)
+        try:
+            sign_in_response = requests.post(sign_in_url, json=sign_in_data, headers=headers)
 
-        # Get the ncfa_token from the response
-        cookie_jar = sign_in_response.cookies
-        ncfa_token = cookie_jar.get('_ncfa')
-        expires_timestamp = cookie_jar[0].get('expires')
-        expires_datetime = datetime.fromtimestamp(expires_timestamp)
+            # Get the ncfa_token from the response
+            cookie_jar = sign_in_response.cookies
+            ncfa_token = cookie_jar.get('_ncfa')
+            expires = None
+            for cookie in cookie_jar:
+                if cookie.name == '_ncfa':
+                    expires = cookie.expires
+
+        except Exception as e:
+            print(f"Error occurred signing in: {e}")
+            return None
 
         # Throw exception if sign_in_response status is not 200
         if sign_in_response.status_code != 200:
@@ -224,9 +231,27 @@ class GeoguessrQueries:
         self_result = session.get(f"{BASE_V3_URL}{self_endpoint}").json()
         self = self_result['user']
         if (cursor.execute("SELECT * FROM Users WHERE GeoId = ?", (self['id'],)).fetchone() is None):
-            user_data = (self['id'], user['nick'], user['nick'])
+            user_data = (self['id'], self['nick'], self['nick'])
             cursor.execute("INSERT INTO Users (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
             conn.commit()
+
+    def get_db_data(self, table_name):
+        """
+        Retrieves all data from a specified table in the database.
+
+        Args:
+            table_name (str): The name of the table to retrieve data from.
+
+        Returns:
+            list: A list of tuples containing the data from the specified table.
+        """
+        try:
+            cursor.execute(f"SELECT * FROM {table_name}")
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Error occurred in getting table data: {e}")
+            return None
+
 
 #ncfa_token = sign_in()
 
