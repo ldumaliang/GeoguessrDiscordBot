@@ -1,17 +1,41 @@
+# Standard library imports
 import datetime
-from GeoguessrQueries import GeoguessrQueries
-import discord
 import logging
 import os
+
+# Third-party imports
+import discord
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
+
+# Local application imports
+from GeoguessrQueries import GeoguessrQueries
 
 tz = datetime.timezone.utc
 midnight = datetime.time(hour=0, minute=0, second=0, microsecond=0, tzinfo=tz)
 
-
 class GeoguessrDiscordBot(commands.Bot):
+    """
+    A Discord bot for Geoguessr integration.
+
+    Attributes:
+        command_prefix (str): The prefix used for bot commands.
+        intents (discord.Intents): The intents for the bot.
+
+    Methods:
+        on_ready(): Event handler for when the bot is ready.
+        on_message(message): Event handler for when a message is received.
+        startup(token): Starts the bot with the specified token.
+    """
+
     def __init__(self, command_prefix, intents):
+        """
+        Initializes a GeoguessrDiscordBot instance.
+
+        Args:
+            command_prefix (str): The prefix used for bot commands.
+            intents (discord.Intents): The intents for the bot.
+        """
         super().__init__(command_prefix, intents=intents)
         intents = intents
         intents.message_content = True
@@ -19,11 +43,20 @@ class GeoguessrDiscordBot(commands.Bot):
         self.todays_thread = None
 
     async def on_ready(self):
+        """
+        Event handler for when the bot is ready.
+        """
         print(f'We have logged in as {self.user}')
         get_daily_challenge_loop.start(self)
         check_daily_results_loop.start(self)
 
     async def on_message(self, message):
+        """
+        Event handler for when a message is received.
+
+        Args:
+            message (discord.Message): The received message.
+        """
         print(message.content)
         if message.author == self.user:
             return
@@ -31,9 +64,14 @@ class GeoguessrDiscordBot(commands.Bot):
         await self.process_commands(message)
     
     def startup(self, token):
+        """
+        Starts the bot with the specified token.
+
+        Args:
+            token (str): The Discord bot token.
+        """
         handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
         self.run(token, log_handler=handler, log_level=logging.DEBUG)
-
 
 # Create an instance of the bot and run it
 intents = discord.Intents.default()
@@ -51,6 +89,16 @@ guild_id = os.getenv('GUILD_ID')
 
 @bot.tree.command(name="register", guild=discord.Object(id=guild_id))
 async def register(ctx, provided_name: str):
+    """
+    Registers a user with their Geoguessr name.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+        provided_name (str): The Geoguessr name to register.
+
+    Returns:
+        None
+    """
     discord_user_id = ctx.user.id
     discord_user_display_name = ctx.user.display_name
 
@@ -72,6 +120,15 @@ async def register(ctx, provided_name: str):
     await ctx.response.send_message(f"{discord_user_display_name} {'successfully' if successfully_registered else 'failed to'} register Geoguessr Name: {provided_name}")
 
 def get_user_list_embed(successfully_registered=False):
+    """
+    Creates an embed containing the list of registered users.
+
+    Args:
+        successfully_registered (bool): Whether a user was successfully registered.
+
+    Returns:
+        discord.Embed: The embed containing the user list.
+    """
     # Create an embed
     embed = discord.Embed(title="List of Users", color=0x00ff00)
 
@@ -92,6 +149,9 @@ def get_user_list_embed(successfully_registered=False):
     return embed
 
 async def create_thread():
+    """
+    Creates a new thread for the daily challenge.
+    """
     # Get today's UTC date in a human-readable format
     today = datetime.datetime.now(tz).strftime("%m-%d-%Y")
 
@@ -100,6 +160,15 @@ async def create_thread():
 
 @bot.command()
 async def sync_commands(ctx):
+    """
+    Syncs the bot commands with the guild.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     try:
         print("Syncing for guild", guild_id)
         guild = bot.get_guild(guild_id) 
@@ -110,6 +179,15 @@ async def sync_commands(ctx):
 
 @bot.command()
 async def clear_commands(ctx):
+    """
+    Clears the bot commands for the guild.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     try:
         print("Clearing for guild", guild_id)
         bot.tree.clear_commands(guild=discord.Object(id=guild_id))
@@ -120,21 +198,58 @@ async def clear_commands(ctx):
 
 @bot.command()
 async def update_daily(ctx):
+    """
+    Updates the daily challenge token.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     print("Update Daily Challenge token")
     await get_daily_challenge()
 
 @bot.command()
 async def update_friends(ctx):
+    """
+    Updates the friends list.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     print("Update Friends List")
     geo_query.update_friends(geo_query.session)
 
 @bot.command()
 async def update_session(ctx):
+    """
+    Updates the session.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     print("Update Session")
     geo_query.update_session()
 
 @bot.command()
 async def get_db_data(ctx, table_name):
+    """
+    Retrieves data from the database table.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+        table_name (str): The name of the database table.
+
+    Returns:
+        None
+    """
     print("Getting DB Data")
     db_data = geo_query.get_db_data(table_name)
     if db_data is not None:
@@ -147,6 +262,15 @@ async def get_db_data(ctx, table_name):
 
 @bot.command()
 async def enable(ctx):
+    """
+    Enables the bot for the current channel.
+
+    Args:
+        ctx (discord.ext.commands.Context): The command context.
+
+    Returns:
+        None
+    """
     channel_id = ctx.channel.id
     channel_name = ctx.channel.name
     bot.message_channel = bot.get_channel(channel_id)
@@ -155,9 +279,24 @@ async def enable(ctx):
 
 @tasks.loop(time=midnight)
 async def get_daily_challenge_loop(self):
+    """
+    Task loop for getting the daily challenge.
+
+    Args:
+        self: The GeoguessrDiscordBot instance.
+
+    Returns:
+        None
+    """
     await get_daily_challenge()
 
 async def get_daily_challenge():
+    """
+    Gets the daily challenge and creates a thread.
+
+    Returns:
+        None
+    """
     # get the daily challenge
     print("getting daily challenge")
     success = geo_query.get_daily_challenge_token()
@@ -168,6 +307,15 @@ async def get_daily_challenge():
 
 @tasks.loop(minutes=1)
 async def retry_daily_challenge(self):
+    """
+    Task loop for retrying to get the daily challenge.
+
+    Args:
+        self: The GeoguessrDiscordBot instance.
+
+    Returns:
+        None
+    """
     # retry getting the daily challenge
     print("retrying daily challenge")
     success = geo_query.get_daily_challenge_token()
@@ -177,6 +325,15 @@ async def retry_daily_challenge(self):
 
 @tasks.loop(seconds=5)
 async def check_daily_results_loop(self):
+    """
+    Task loop for checking the daily results.
+
+    Args:
+        self: The GeoguessrDiscordBot instance.
+
+    Returns:
+        None
+    """
     # check the daily results
     print("checking daily results")
     new_results = geo_query.check_for_new_results()

@@ -17,6 +17,10 @@ BASE_V3_URL = "https://www.geoguessr.com/api/v3/"  # Base URL for all V3 endpoin
 BASE_V4_URL = "https://www.geoguessr.com/api/v4/"  # Base URL for all V4 endpoints
 
 class GeoguessrQueries:
+    """
+    A class that contains methods for querying Geoguessr API and updating the database with the results.
+    """
+
     ncfa_token = None
     session = None
     db = GeoguessrDatabase()
@@ -24,6 +28,9 @@ class GeoguessrQueries:
     cursor = None
 
     def __init__(self):
+        """
+        Initializes the GeoguessrQueries class by establishing a connection to the database.
+        """
         self.conn = sqlite3.connect('geoguessr.db')
         self.cursor = self.conn.cursor()
 
@@ -56,50 +63,50 @@ class GeoguessrQueries:
         return success
     
     def check_for_new_results(self) -> list:
-            """
-            Checks for new results in the daily challenge and adds them to the database.
+        """
+        Checks for new results in the daily challenge and adds them to the database.
 
-            Returns:
-                list: A list of new user daily results added to the database.
-            """
-            # Get the current daily challenge token
-            daily_challenge_endpoint = 'challenges/daily-challenges/today/'
-            friends_flags = '?friends=true'
-            daily_challenge_url = f'{BASE_V3_URL}{daily_challenge_endpoint}'
+        Returns:
+            list: A list of new user daily results added to the database.
+        """
+        # Get the current daily challenge token
+        daily_challenge_endpoint = 'challenges/daily-challenges/today/'
+        friends_flags = '?friends=true'
+        daily_challenge_url = f'{BASE_V3_URL}{daily_challenge_endpoint}'
+        try:
+            daily_challenge_response = self.session.get(daily_challenge_url)
+            daily_challenge_data = daily_challenge_response.json()
+        except Exception as e:
+            print(f"Error occurred getting daily_challenge_data: {e}")
+            return None
+
+        challenge_row = db.get_todays_challenge()
+        challenge_id = int(challenge_row[0])
+
+        new_results = []
+
+        for item in daily_challenge_data.get('friends', []):
             try:
-                daily_challenge_response = self.session.get(daily_challenge_url)
-                daily_challenge_data = daily_challenge_response.json()
+                user_id = item['id']
+                user = db.get_user_by_geo_id(user_id)
+                if not user:
+                    print(f"No user found with id: {user_id}")
+                    continue
+
+                user_id, _, user_geo_name, _, discord_id = user
+                user_daily_result = db.get_user_daily_result(user_id, challenge_id)
+
+                # If the user has not submitted a score, insert the score into the UserDailyResult table
+                if not user_daily_result:
+                    total_score = item['totalScore']
+                    new_user_daily_result = (user_id, total_score, challenge_id)
+                    db.add_user_daily_result(*new_user_daily_result)
+                    new_results.append((user_geo_name, total_score, challenge_id, discord_id))
+                    print(f"Added: {item['nick']} {total_score}")
             except Exception as e:
-                print(f"Error occurred getting daily_challenge_data: {e}")
-                return None
-
-            challenge_row = db.get_todays_challenge()
-            challenge_id = int(challenge_row[0])
-
-            new_results = []
-
-            for item in daily_challenge_data.get('friends', []):
-                try:
-                    user_id = item['id']
-                    user = db.get_user_by_geo_id(user_id)
-                    if not user:
-                        print(f"No user found with id: {user_id}")
-                        continue
-
-                    user_id, _, user_geo_name, _, discord_id = user
-                    user_daily_result = db.get_user_daily_result(user_id, challenge_id)
-
-                    # If the user has not submitted a score, insert the score into the UserDailyResult table
-                    if not user_daily_result:
-                        total_score = item['totalScore']
-                        new_user_daily_result = (user_id, total_score, challenge_id)
-                        db.add_user_daily_result(*new_user_daily_result)
-                        new_results.append((user_geo_name, total_score, challenge_id, discord_id))
-                        print(f"Added: {item['nick']} {total_score}")
-                except Exception as e:
-                    print(f"Error occurred: {e}")
-            
-            return new_results
+                print(f"Error occurred: {e}")
+        
+        return new_results
 
     def check_for_new_results_detailed(self):
         """
@@ -236,25 +243,3 @@ class GeoguessrQueries:
             print(f"Error occurred in getting table data: {e}")
             return None
     
-    #def set_user_discord_id(self, user_id, discord_id):
-    #    """
-    #    Sets the Discord ID for a user in the database.
-
-    #    Args:
-    #        user_id (int): The ID of the user.
-    #        discord_id (int): The Discord ID of the user.
-    #    """
-    #    try:
-    #        db.set_user_discord_id(user_id, discord_id)
-    #    except Exception as e:
-    #        print(f"Error occurred in setting user Discord ID: {e}")
-
-
-#ncfa_token = sign_in()
-
-#geoqueries = GeoguessrQueries()
-#geoqueries.update_session()
-#geoqueries.update_friends(geoqueries.session)
-#geoqueries.get_daily_challenge_token()
-##geoqueries.check_for_new_results_detailed()
-#geoqueries.check_for_new_results()

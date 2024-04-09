@@ -33,16 +33,16 @@ class GeoguessrDatabase:
         """
         self.conn.close()
 
-    # Update the daily challenge token in the database
     def update_challenge_token(self, token):
         """
         Updates the daily challenge token in the database.
 
         Parameters:
         - token (str): The daily challenge token to update.
-        """
 
-        # Update the Challenge table with the daily challenge token if it doesn't exist
+        Returns:
+        - bool: True if the token was successfully updated, False otherwise.
+        """
         try:
             self.c.execute("SELECT * FROM Challenge WHERE ChallengeToken = ?", (token,))
             challenge_row = self.c.fetchone()
@@ -58,7 +58,6 @@ class GeoguessrDatabase:
             logging.error(f"Error occurred in updating challenge token: {e}")
             return False
     
-    # Get todays challenge id and challenge token
     def get_todays_challenge(self):
         """
         Retrieves the ID and token for the current daily challenge.
@@ -108,7 +107,6 @@ class GeoguessrDatabase:
             logging.error(f"Error occurred in getting user by DiscordId: {e}")
             return None
     
-    # Get the a user's daily result for a specific challenge
     def get_user_daily_result(self, user_id, challenge_id):
         """
         Retrieves a user's daily result for a specific challenge.
