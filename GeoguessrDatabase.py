@@ -85,6 +85,24 @@ class GeoguessrDatabase:
         except Exception as e:
             logging.error(f"Error occurred in getting user by GeoId: {e}")
     
+    def get_user_by_discord_id(self, discord_id):
+        """
+        Retrieves a user by their Discord ID.
+
+        Parameters:
+        - discord_id (int): The Discord ID of the user.
+
+        Returns:
+            tuple: A tuple containing the user's information.
+        """
+        try:
+            self.c.execute("SELECT * FROM Users WHERE DiscordId = ?", (discord_id,))
+            user = self.c.fetchone()
+            return user
+        except Exception as e:
+            logging.error(f"Error occurred in getting user by DiscordId: {e}")
+            return None
+    
     # Get the a user's daily result for a specific challenge
     def get_user_daily_result(self, user_id, challenge_id):
         """
@@ -166,4 +184,26 @@ class GeoguessrDatabase:
             list: A list of tuples, each containing the data for one challenge.
         """
         self.c.execute("SELECT * FROM Challenges")
+
+    def set_user_discord_id(self, geo_name, discord_id, discord_name):
+        """
+        Sets the Discord ID for a user in the database.
+
+        Parameters:
+        - geo_id (str): The Geo ID of the user.
+        - discord_id (int): The Discord ID of the user.
+
+        Returns:
+        - bool: True if the Discord ID was successfully set, False otherwise.
+        """
+        try:
+            self.c.execute("UPDATE Users SET DiscordId = ?, DiscordName = ? WHERE GeoName = ? AND (DiscordId IS NULL OR DiscordId = '')", (discord_id, discord_name, geo_name))
+            self.conn.commit()
+            if self.c.rowcount != 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            logging.error(f"Error occurred in setting user's Discord ID: {e}")
+            return False
     

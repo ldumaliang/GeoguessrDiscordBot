@@ -49,20 +49,68 @@ token = os.getenv('DISCORD_TOKEN')
 guild_id = os.getenv('GUILD_ID')
 
 
-@bot.tree.command(name="test", guild=discord.Object(id=guild_id))
-async def test(ctx):
-    await ctx.response.send_message('Hello!')
+@bot.tree.command(name="register", guild=discord.Object(id=guild_id))
+async def register(ctx, provided_name: str):
+    discord_user_id = ctx.user.id
+    discord_user_display_name = ctx.user.display_name
+
+    if geo_query.db.get_user_by_discord_id(discord_user_id) is not None:
+        # Send a response that the user is already registered
+        await ctx.response.send_message(f"{discord_user_display_name} is already registered with Geoguessr Name")
+        return
+
+    successfully_registered = False
+
+    if provided_name is not None:
+        successfully_registered = geo_query.db.set_user_discord_id(provided_name, discord_user_id, discord_user_display_name)
+
+    icon_png = discord.File("assets/GeoguessrDiscordIcon.png", filename="icon.png")
+    embed = get_user_list_embed()
+
+    # Send the embed
+    await ctx.channel.send(file=icon_png, embed=embed)
+    await ctx.response.send_message(f"{discord_user_display_name} {'successfully' if successfully_registered else 'failed to'} register Geoguessr Name: {provided_name}")
+
+def get_user_list_embed(successfully_registered=False):
+    # Create an embed
+    embed = discord.Embed(title="List of Users", color=0x00ff00)
+
+    users_list = geo_query.db.get_all_users()
+
+    geo_names = "\n".join([f"{user[2]}" for user in users_list])
+    discord_names = "\n".join([f"{user[3] if user[3] else '*Unregistered*'}" for user in users_list])
+
+    # Add each user to the embed
+    embed.add_field(name="Geoguessr Name", value=f"{geo_names}", inline=True)
+    embed.add_field(name="Registered Discord Name", value=f"{discord_names}", inline=True)
+
+    if successfully_registered is False:
+        embed.set_footer(text="Usage: /register 'Geoguessr Name'", icon_url="attachment://icon.png")
+    else:
+        embed.set_footer(icon_url="attachment://icon.png")
 
 @bot.command()
-async def sync(ctx):
+async def create_thread(ctx, name):
+    thread = await ctx.channel.create_thread(name=name, message="New Thread!", auto_archive_duration=1440)
+    await thread.send('This is the first message in the thread!')
+    await ctx.send(f'Thread created: {thread.mention}')
+
+@bot.command()
+async def sync_commands(ctx):
     try:
         print("Syncing for guild", guild_id)
-        bot.tree.clear_commands(guild=None)
-        global_commands = await bot.tree.sync(guild=None)
-        print("Global commands", global_commands)
         guild = bot.get_guild(guild_id) 
-        bot.tree.clear_commands(guild=guild)
-        guild_commands = await bot.tree.sync(guild=guild)
+        guild_commands = await bot.tree.sync(guild=discord.Object(id=guild_id))
+        print("Guild commands", guild_commands)
+    except Exception as e:
+        print(e)
+
+@bot.command()
+async def clear_commands(ctx):
+    try:
+        print("Clearing for guild", guild_id)
+        bot.tree.clear_commands(guild=discord.Object(id=guild_id))
+        guild_commands = await bot.tree.sync(guild=discord.Object(id=guild_id))
         print("Guild commands", guild_commands)
     except Exception as e:
         print(e)
@@ -123,7 +171,8 @@ async def check_daily_results(self):
     new_results = geo_query.check_for_new_results()
     for result in new_results:
         # send a message to a specific channel
-        await self.message_channel.send(f"New result: User - {result[0]} scored - {result[1]} points!")
+        if self.message_channel is not None:
+            await self.message_channel.send(f"New result: User - {result[0]} scored - {result[1]} points!")
 
 
 # Run the client

@@ -1,8 +1,9 @@
-CREATE TABLE IF NOT EXISTS Users (
+CREATE TABLE IF NOT EXISTS User (
     UserId INTEGER PRIMARY KEY,
     GeoId TEXT,
     GeoName TEXT,
-    DiscordName TEXT
+    DiscordName TEXT,
+    DiscordId TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Challenge (

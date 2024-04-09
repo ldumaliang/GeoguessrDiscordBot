@@ -102,7 +102,7 @@ class GeoguessrQueries:
                         print(f"No user found with id: {user_id}")
                         continue
 
-                    user_id, _, user_geo_name, _ = user
+                    user_id, _, user_geo_name, _, _ = user
                     user_daily_result = db.get_user_daily_result(user_id, challenge_id)
 
                     # If the user has not submitted a score, insert the score into the UserDailyResult table
@@ -251,6 +251,19 @@ class GeoguessrQueries:
         except Exception as e:
             print(f"Error occurred in getting table data: {e}")
             return None
+    
+    #def set_user_discord_id(self, user_id, discord_id):
+    #    """
+    #    Sets the Discord ID for a user in the database.
+
+    #    Args:
+    #        user_id (int): The ID of the user.
+    #        discord_id (int): The Discord ID of the user.
+    #    """
+    #    try:
+    #        db.set_user_discord_id(user_id, discord_id)
+    #    except Exception as e:
+    #        print(f"Error occurred in setting user Discord ID: {e}")
 
 
 #ncfa_token = sign_in()
