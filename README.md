@@ -1,3 +1,5 @@
+[![Python application](https://github.com/ldumaliang/GeoguessrDiscordBot/actions/workflows/python-app.yml/badge.svg)](https://github.com/ldumaliang/GeoguessrDiscordBot/actions/workflows/python-app.yml)
+
 # GeoGuessr Daily Challenge Bot
 
 This project is a Python-based tool that polls the Geoguessr Daily Challenge and posts the results to discord
