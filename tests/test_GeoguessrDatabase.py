@@ -1,7 +1,10 @@
 import sys
 import unittest
 
-sys.path.append('../GeoguessrDiscordBot')
+import sys
+import os
+
+sys.path.append("app")
 
 from GeoguessrDatabase import GeoguessrDatabase
 

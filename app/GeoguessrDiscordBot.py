@@ -47,6 +47,7 @@ class GeoguessrDiscordBot(commands.Bot):
         Event handler for when the bot is ready.
         """
         print(f'We have logged in as {self.user}')
+        await update_session(self)
         get_daily_challenge_loop.start(self)
         check_daily_results_loop.start(self)
 
@@ -70,7 +71,7 @@ class GeoguessrDiscordBot(commands.Bot):
         Args:
             token (str): The Discord bot token.
         """
-        handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+        handler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
         self.run(token, log_handler=handler, log_level=logging.DEBUG)
 
 # Create an instance of the bot and run it
@@ -78,8 +79,6 @@ intents = discord.Intents.default()
 bot = GeoguessrDiscordBot(command_prefix=".", intents=intents)
 
 geo_query = GeoguessrQueries()
-geo_query.update_session()
-geo_query.update_friends(geo_query.session)
 
 # Import token from file .env
 load_dotenv()
@@ -130,7 +129,7 @@ def get_user_list_embed(successfully_registered=False):
         discord.Embed: The embed containing the user list.
     """
     # Create an embed
-    embed = discord.Embed(title="List of Users", color=0x00ff00)
+    embed = discord.Embed(title="List of User", color=0xa5434d)
 
     users_list = geo_query.db.get_all_users()
 
@@ -337,6 +336,10 @@ async def check_daily_results_loop(self):
     # check the daily results
     print("checking daily results")
     new_results = geo_query.check_for_new_results()
+
+    if new_results is None:
+        return
+
     for result in new_results:
         discord_mention = ''
         if result[3] is not None:
