@@ -1,8 +1,9 @@
 import sqlite3
 import logging
 
+
 class GeoguessrDatabase:
-    def __init__(self, db_name='geoguessr.db'):
+    def __init__(self, db_name='database/geoguessr.db'):
         """
         Initializes a Database object.
 

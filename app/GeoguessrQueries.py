@@ -9,7 +9,7 @@ import requests
 import schedule
 
 db = GeoguessrDatabase()
-conn = sqlite3.connect('geoguessr.db')
+conn = sqlite3.connect('database/geoguessr.db')
 cursor = conn.cursor()
 
 geoguessr_base_url = 'https://geoguessr.com/api'
@@ -31,7 +31,7 @@ class GeoguessrQueries:
         """
         Initializes the GeoguessrQueries class by establishing a connection to the database.
         """
-        self.conn = sqlite3.connect('geoguessr.db')
+        self.conn = sqlite3.connect('database/geoguessr.db')
         self.cursor = self.conn.cursor()
 
     def update_session(self):
@@ -39,7 +39,7 @@ class GeoguessrQueries:
         Updates the session with the necessary authentication token.
         """
         #self.ncfa_token = self._sign_in()
-        self.ncfa_token = "jd%2BaOjXEcY2vg7V2ERhTuKpaCPcRPKjqmbvotDVrPJM%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWZMdjr0eHHDgT1%2BPNfkQNCs%3D"
+        self.ncfa_token = "PbAWO6JE%2BSLbF5wsK0YCZNVOcMXaXy6sxA44fJYr6o4%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWZrW3wsdR%2FkYCsZMwz7NRYM%3D"
         self.session = requests.Session()
         self.session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
 
@@ -81,6 +81,9 @@ class GeoguessrQueries:
             return None
 
         challenge_row = db.get_todays_challenge()
+        if not challenge_row:
+            return None
+
         challenge_id = int(challenge_row[0])
 
         new_results = []
@@ -204,26 +207,30 @@ class GeoguessrQueries:
             None
         """
         friends_endpoints = 'social/friends/summary'
-        users_results = session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
+        try:
+            users_results = session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
+        except Exception as e:
+            print(f"Error occurred getting users_results: {e}")
+            return
 
         for user in users_results['friends']:
             # Check if the user is already in the database
-            cursor.execute("SELECT * FROM Users WHERE GeoId = ?", (user['userId'],))
+            cursor.execute("SELECT * FROM User WHERE GeoId = ?", (user['userId'],))
             user_row = cursor.fetchone()
 
             # Add user if it doesn't exist
             if user_row is None:
-                user_data = (user['userId'], user['nick'], user['nick'])
-                cursor.execute("INSERT INTO Users (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
+                user_data = (user['userId'], user['nick'])
+                cursor.execute("INSERT INTO User (GeoId, GeoName) VALUES (?, ?)", user_data)
                 conn.commit()
 
         # Add self to users table if not already present
         self_endpoint = 'profiles'
         self_result = session.get(f"{BASE_V3_URL}{self_endpoint}").json()
         self = self_result['user']
-        if (cursor.execute("SELECT * FROM Users WHERE GeoId = ?", (self['id'],)).fetchone() is None):
+        if (cursor.execute("SELECT * FROM User WHERE GeoId = ?", (self['id'],)).fetchone() is None):
             user_data = (self['id'], self['nick'], self['nick'])
-            cursor.execute("INSERT INTO Users (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
+            cursor.execute("INSERT INTO User (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
             conn.commit()
 
     def get_db_data(self, table_name):
