@@ -1,0 +1,5 @@
+discord.py==2.3.2
+pydantic==2.7.0
+python-dotenv==1.0.1
+Requests==2.31.0
+schedule==1.2.1

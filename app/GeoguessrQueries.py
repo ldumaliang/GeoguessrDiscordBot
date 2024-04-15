@@ -1,16 +1,17 @@
+# Standard library imports
+import configparser
 import datetime
-from GeoguessrDatabase import GeoguessrDatabase
-import sqlite3
 import json
 import sched
+import sqlite3
 import time
-import configparser
+
+# Related third party imports
 import requests
 import schedule
 
-db = GeoguessrDatabase()
-conn = sqlite3.connect('database/geoguessr.db')
-cursor = conn.cursor()
+# Local application/library specific imports
+from database import User, Challenge, UserDailyResult, engine, Session, Base, get_or_create, session_scope
 
 geoguessr_base_url = 'https://geoguessr.com/api'
 BASE_V3_URL = "https://www.geoguessr.com/api/v3/"  # Base URL for all V3 endpoints
@@ -23,23 +24,24 @@ class GeoguessrQueries:
 
     ncfa_token = None
     session = None
-    db = GeoguessrDatabase()
-    conn = None
-    cursor = None
+    #db = GeoguessrDatabase()
+    #conn = None
+    #cursor = None
 
     def __init__(self):
         """
         Initializes the GeoguessrQueries class by establishing a connection to the database.
         """
-        self.conn = sqlite3.connect('database/geoguessr.db')
-        self.cursor = self.conn.cursor()
+        #self.conn = sqlite3.connect('database/geoguessr.db')
+        #self.cursor = self.conn.cursor()
+    
 
-    def update_session(self):
+    def update_geoguessr_session(self):
         """
         Updates the session with the necessary authentication token.
         """
-        #self.ncfa_token = self._sign_in()
-        self.ncfa_token = "PbAWO6JE%2BSLbF5wsK0YCZNVOcMXaXy6sxA44fJYr6o4%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWZrW3wsdR%2FkYCsZMwz7NRYM%3D"
+        self.ncfa_token = self._sign_in()
+        #self.ncfa_token = "FB8tSK4H0SlPUY1Ch11vmwQ5dPMboew00RTN7xsxHZY%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWeMF5Un%2BJe%2BVtufgYedKfgk%3D"
         self.session = requests.Session()
         self.session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
 
@@ -53,21 +55,21 @@ class GeoguessrQueries:
         # Get the current daily challenge token
         daily_challenge_endpoint = 'challenges/daily-challenges/today'
         daily_challenge_url = f'{BASE_V3_URL}{daily_challenge_endpoint}'
+
         response = requests.get(daily_challenge_url).json()
         token = response.get('token')
+        challenge = Challenge(time=datetime.datetime.now(tz=datetime.timezone.utc), challenge_token=token)
 
-        success = db.update_challenge_token(token)
-
-        # Print the token to the console
-        print("Challenge Token:", token)
-        return success
+        with session_scope(self) as session:
+            session.add(challenge)
+            session.commit()
     
-    def check_for_new_results(self) -> list:
+    def check_for_new_results(self) -> list[UserDailyResult]:
         """
         Checks for new results in the daily challenge and adds them to the database.
 
         Returns:
-            list: A list of new user daily results added to the database.
+            list: A list of new friend daily results added to the database.
         """
         # Get the current daily challenge token
         daily_challenge_endpoint = 'challenges/daily-challenges/today/'
@@ -80,71 +82,54 @@ class GeoguessrQueries:
             print(f"Error occurred getting daily_challenge_data: {e}")
             return None
 
-        challenge_row = db.get_todays_challenge()
-        if not challenge_row:
+        try:
+            with session_scope(self) as session:
+                todays_challenge = session.query(Challenge).order_by(Challenge.time.desc()).first()
+                todays_challenge_date = todays_challenge.time.date()
+        except Exception as e:
+            print(f"Error occurred getting todays_challenge from database: {e}")
             return None
 
-        challenge_id = int(challenge_row[0])
+        if not todays_challenge:
+            print("No challenge found.")
+            return None
+        
+        
+        # Check if the latest challenge is today's challenge 
+        if datetime.datetime.now(tz=datetime.timezone.utc).date() != todays_challenge_date:
+            print("Today's challenge has not been retrieved yet.")
+            return None
 
         new_results = []
 
-        for item in daily_challenge_data.get('friends', []):
+        for friend_result in daily_challenge_data.get('friends', []):
+
             try:
-                user_id = item['id']
-                user = db.get_user_by_geo_id(user_id)
-                if not user:
-                    print(f"No user found with id: {user_id}")
-                    continue
+                with session_scope(self) as session:
+                    # Get the UserDailyResult for the current friend and challenge
+                    user_daily_result = (
+                        session.query(UserDailyResult)
+                        .filter(
+                            UserDailyResult.user_id == friend_result['id'],
+                            UserDailyResult.challenge_token == todays_challenge.challenge_token
+                        )
+                        .first()
+                    )
 
-                user_id, _, user_geo_name, _, discord_id = user
-                user_daily_result = db.get_user_daily_result(user_id, challenge_id)
-
-                # If the user has not submitted a score, insert the score into the UserDailyResult table
-                if not user_daily_result:
-                    total_score = item['totalScore']
-                    new_user_daily_result = (user_id, total_score, challenge_id)
-                    db.add_user_daily_result(*new_user_daily_result)
-                    new_results.append((user_geo_name, total_score, challenge_id, discord_id))
-                    print(f"Added: {item['nick']} {total_score}")
+                    # If the friend has not submitted a score, insert the score into the UserDailyResult table
+                    if not user_daily_result:
+                        user_daily_result = UserDailyResult(
+                            user_id=friend_result['id'],
+                            score=friend_result['totalScore'],
+                            challenge_token=todays_challenge.challenge_token
+                        )
+                        new_results.append(user_daily_result)
             except Exception as e:
-                print(f"Error occurred: {e}")
+                print(f"Error occurred getting user_daily_result for user_id{friend_result['id']} and challenge_token{todays_challenge.challenge_token}: {e}")
+                return None
+
         
         return new_results
-
-    def check_for_new_results_detailed(self):
-        """
-        Retrieves the daily challenge results from Geoguessr API in detail and adds them to the database.
-        """
-        print("Checking for new results...")
-
-        results_endpoint = 'results/highscores/'
-        results_flags = '?friends=true&limit=26&minRounds=5'
-
-        # Get the current daily challenge token from the Challenge table
-        challenge_row = db.get_todays_challenge()
-        challenge_id = int(challenge_row[0])
-        challenge_token = challenge_row[1]
-
-        # Get the daily challenge results
-        try:
-            daily_challenge_results = self.session.get(f"{BASE_V3_URL}{results_endpoint}{challenge_token}{results_flags}")
-            daily_challenge_data = daily_challenge_results.json()
-        except Exception as e:
-            print(f"Error occurred getting daily_challenge_results: {e}")
-            return None
-
-        for item in daily_challenge_data['items']:
-            # Check if the current user has already submitted a score for the daily challenge
-            try:
-                user = db.get_user_by_geo_id(item['userId'])
-                user_daily_result = db.get_user_daily_result(user[0], challenge_id)
-
-                # If the user has not submitted a score, insert the score into the UserDailyResult table
-                if user_daily_result is None or len(user_daily_result) == 0:
-                    db.add_user_daily_result(user[0], item['totalScore'], challenge_id)
-                    print("Added: ", item['playerName'], item['totalScore'])
-            except Exception as e:
-                print(f"Error occurred: {e}")
 
     def _sign_in(self) -> str:
         """
@@ -164,7 +149,7 @@ class GeoguessrQueries:
 
         # Parse credentials from file
         config = configparser.ConfigParser()
-        config.read('credentials.ini')  # replace with your credentials file path
+        config.read('../credentials.ini')  # replace with your credentials file path
         username = config.get('Credentials', 'Username').strip("'")
         password = config.get('Credentials', 'Password').strip("'")
 
@@ -196,7 +181,7 @@ class GeoguessrQueries:
         print(ncfa_token)
         return ncfa_token
 
-    def update_friends(self, session) -> None:
+    def update_friends(self) -> None:
         """
         Updates the users in the database with their Geoguessr usernames.
 
@@ -208,45 +193,23 @@ class GeoguessrQueries:
         """
         friends_endpoints = 'social/friends/summary'
         try:
-            users_results = session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
+            users_results = self.session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
         except Exception as e:
             print(f"Error occurred getting users_results: {e}")
             return
 
-        for user in users_results['friends']:
-            # Check if the user is already in the database
-            cursor.execute("SELECT * FROM User WHERE GeoId = ?", (user['userId'],))
-            user_row = cursor.fetchone()
-
-            # Add user if it doesn't exist
-            if user_row is None:
-                user_data = (user['userId'], user['nick'])
-                cursor.execute("INSERT INTO User (GeoId, GeoName) VALUES (?, ?)", user_data)
-                conn.commit()
-
-        # Add self to users table if not already present
-        self_endpoint = 'profiles'
-        self_result = session.get(f"{BASE_V3_URL}{self_endpoint}").json()
-        self = self_result['user']
-        if (cursor.execute("SELECT * FROM User WHERE GeoId = ?", (self['id'],)).fetchone() is None):
-            user_data = (self['id'], self['nick'], self['nick'])
-            cursor.execute("INSERT INTO User (GeoId, GeoName, DiscordName) VALUES (?, ?, ?)", user_data)
-            conn.commit()
-
-    def get_db_data(self, table_name):
-        """
-        Retrieves all data from a specified table in the database.
-
-        Args:
-            table_name (str): The name of the table to retrieve data from.
-
-        Returns:
-            list: A list of tuples containing the data from the specified table.
-        """
         try:
-            cursor.execute(f"SELECT * FROM {table_name}")
-            return cursor.fetchall()
+            with session_scope(self) as session:
+                for friend in users_results['friends']:
+                    # Check if the friend is already in the database
+                    get_or_create(session, User, geo_id=friend['userId'], geo_name=friend['nick'])
+
+                # Add self to users table if not already present
+                self_endpoint = 'profiles'
+                self_result = self.session.get(f"{BASE_V3_URL}{self_endpoint}").json()
+                self = self_result['user']
+
+                get_or_create(session, User, geo_id=self['userId'], geo_name=self['nick'])
         except Exception as e:
-            print(f"Error occurred in getting table data: {e}")
-            return None
-    
+            print(f"Error occurred updating friends: {e}")
+            return
