@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
 # Create the engine and connect to the database
-engine = create_engine('sqlite:///:memory:', echo=True)
+engine = create_engine('sqlite:///geoguessrdiscordbot.db', echo=True)
 Session = sessionmaker(bind=engine)
 
 def get_or_create(session, model, **kwargs):
@@ -13,7 +13,6 @@ def get_or_create(session, model, **kwargs):
     else:
         instance = model(**kwargs)
         session.add(instance)
-        session.commit()
         return instance
 
 @contextmanager

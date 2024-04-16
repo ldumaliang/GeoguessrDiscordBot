@@ -7,6 +7,7 @@ import os
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
+from sqlalchemy.orm.exc import NoResultFound
 
 # Local application imports
 from GeoguessrQueries import GeoguessrQueries
@@ -73,7 +74,7 @@ class GeoguessrDiscordBot(commands.Bot):
         Args:
             token (str): The Discord bot token.
         """
-        handler = logging.FileHandler(filename='../logs/discord.log', encoding='utf-8', mode='w')
+        handler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
         self.run(token, log_handler=handler, log_level=logging.DEBUG)
 
 # Create an instance of the bot and run it
@@ -104,29 +105,30 @@ async def register(ctx, provided_name: str):
     current_user_id = current_user.id
 
     try:
-        with session_scope() as session:
+        with session_scope(bot) as session:
 
             # Check if the user is already registered to a geoguessr account
-            if session.query(User).filter(User.discord_id == current_user_id).one() is not None:
-                name = bot.get_user(current_user_id).name
-                await ctx.response.send_message(f"{name} is already registered with Geoguessr Name")
-                return
+            if session.query(User).filter(User.discord_id == current_user_id).one_or_none() is not None:
+                name = current_user.name
+                await ctx.channel.send(f"{name} is already registered with Geoguessr Name")
+                raise Exception("User already registered")
 
             user = session.query(User).filter(User.geo_name == provided_name).one()
             user.discord_id = current_user_id
 
+    except NoResultFound:
+        await ctx.channel.send(f"Geoguessr Name: {provided_name} not found")
     except Exception as e:
         print(f"Error occurred registering discord_id {current_user_id}: {e}")
-        await ctx.response.send_message(f"Failed to register Geoguessr Name: {provided_name}")
-        return
+        await ctx.channel.send(f"Failed to register Geoguessr Name: {provided_name}")
 
 
     icon_png = discord.File("assets/GeoguessrDiscordIcon.png", filename="icon.png")
     embed = get_user_list_embed()
 
     # Send the embed
-    await ctx.channel.send(file=icon_png, embed=embed)
-    await ctx.response.send_message(f"{current_user.name} ' successfully registered Geoguessr Name: {provided_name}")
+    await ctx.response.send_message(file=icon_png, embed=embed)
+    #await ctx.response.send_message(f"{current_user.name} ' successfully registered Geoguessr Name: {provided_name}")
 
 def get_user_list_embed():
     """
@@ -142,14 +144,13 @@ def get_user_list_embed():
     embed = discord.Embed(title="List of User", color=0xa5434d)
 
     try:
-        with session_scope() as session:
+        with session_scope(bot) as session:
             users_list = session.query(User).all()
+            geo_names = "\n".join([f"{user.geo_name}" for user in users_list])
+            discord_names = "\n".join([f"{'**Registered**' if user.discord_id else '*Unregistered*'}" for user in users_list])
     except Exception as e:
         print(f"Error occurred getting all users: {e}")
         return
-
-    geo_names = "\n".join([f"{user.geo_name}" for user in users_list])
-    discord_names = "\n".join([f"{'**Registered**' if user.discord_id else '*Unregistered*'}" for user in users_list])
 
     # Add each user to the embed
     embed.add_field(name="Geoguessr Name", value=f"{geo_names}", inline=True)
@@ -334,22 +335,28 @@ async def check_daily_results_loop(self):
     print("Checking daily results")
     
     # Returns a list of UserDailyResults
-    new_results = geo_query.check_for_new_results()
+    new_result_ids = geo_query.check_for_new_results()
 
-    if new_results is None:
+    if new_result_ids is None:
         return
+    
+    try:
+        with session_scope(bot) as session:
+            new_results = session.query(UserDailyResult).filter(UserDailyResult.user_daily_id.in_(new_result_ids)).all()
 
-    for result in new_results:
-        # Get the user associated with the result
-        user = result.user
-        if user.discord_id is not None:
-            discord_user = await self.fetch_user(user.discord_id)
-            discord_mention = discord_user.mention
-        else:
-            discord_mention = user.geo_name
-        # send a message to a specific thread
-        if bot.todays_thread is not None:
-            await bot.todays_thread.send(f"New result: {discord_mention} scored - {result.score} points!")
+            for result in new_results:
+                # Get the user associated with the result
+                user = result.user
+                if user.discord_id is not None:
+                    discord_user = await self.fetch_user(user.discord_id)
+                    discord_mention = discord_user.mention
+                else:
+                    discord_mention = user.geo_name
+                # send a message to a specific thread
+                if bot.todays_thread is not None:
+                    await bot.todays_thread.send(f"New result: {discord_mention} scored - {result.score} points!")
+    except Exception as e:
+        print(f"Error occurred checking daily results: {e}")
 
 
 # Run the client

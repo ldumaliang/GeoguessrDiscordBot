@@ -1,5 +1,6 @@
 # Standard library imports
 import configparser
+from datetime import datetime
 import datetime
 import json
 import sched
@@ -23,10 +24,7 @@ class GeoguessrQueries:
     """
 
     ncfa_token = None
-    session = None
-    #db = GeoguessrDatabase()
-    #conn = None
-    #cursor = None
+    requests_session = None
 
     def __init__(self):
         """
@@ -40,10 +38,10 @@ class GeoguessrQueries:
         """
         Updates the session with the necessary authentication token.
         """
-        self.ncfa_token = self._sign_in()
-        #self.ncfa_token = "FB8tSK4H0SlPUY1Ch11vmwQ5dPMboew00RTN7xsxHZY%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWeMF5Un%2BJe%2BVtufgYedKfgk%3D"
-        self.session = requests.Session()
-        self.session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
+        #self.ncfa_token = self._sign_in()
+        self.ncfa_token = "HrU5g%2BuL3i3bez9ouVY0c1ehwhrsIXvTLZRBBC89t08%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWbuHycFvKnXwb0CqAjgOE88%3D"
+        self.requests_session = requests.Session()
+        self.requests_session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
 
     def get_daily_challenge_token(self):
         """
@@ -64,7 +62,7 @@ class GeoguessrQueries:
             session.add(challenge)
             session.commit()
     
-    def check_for_new_results(self) -> list[UserDailyResult]:
+    def check_for_new_results(self) -> list:
         """
         Checks for new results in the daily challenge and adds them to the database.
 
@@ -76,7 +74,7 @@ class GeoguessrQueries:
         friends_flags = '?friends=true'
         daily_challenge_url = f'{BASE_V3_URL}{daily_challenge_endpoint}'
         try:
-            daily_challenge_response = self.session.get(daily_challenge_url)
+            daily_challenge_response = self.requests_session.get(daily_challenge_url)
             daily_challenge_data = daily_challenge_response.json()
         except Exception as e:
             print(f"Error occurred getting daily_challenge_data: {e}")
@@ -85,51 +83,51 @@ class GeoguessrQueries:
         try:
             with session_scope(self) as session:
                 todays_challenge = session.query(Challenge).order_by(Challenge.time.desc()).first()
-                todays_challenge_date = todays_challenge.time.date()
-        except Exception as e:
-            print(f"Error occurred getting todays_challenge from database: {e}")
-            return None
+                todays_challenge_date = datetime.datetime.strptime(todays_challenge.time, '%Y-%m-%d %H:%M:%S.%f%z').date() if todays_challenge else None
 
-        if not todays_challenge:
-            print("No challenge found.")
-            return None
+                if not todays_challenge:
+                    print("No challenge found.")
+                    return None
         
         
-        # Check if the latest challenge is today's challenge 
-        if datetime.datetime.now(tz=datetime.timezone.utc).date() != todays_challenge_date:
-            print("Today's challenge has not been retrieved yet.")
-            return None
+                # Check if the latest challenge is today's challenge 
+                if datetime.datetime.now(tz=datetime.timezone.utc).date() != todays_challenge_date:
+                    print("Today's challenge has not been retrieved yet.")
+                    return None
 
-        new_results = []
+                new_result_ids = []
 
-        for friend_result in daily_challenge_data.get('friends', []):
+                for friend_result in daily_challenge_data.get('friends', []):
+                    # Get the user with the corresponding geo_id
+                    user = session.query(User).filter(User.geo_id == friend_result['id']).first()
 
-            try:
-                with session_scope(self) as session:
                     # Get the UserDailyResult for the current friend and challenge
                     user_daily_result = (
                         session.query(UserDailyResult)
                         .filter(
-                            UserDailyResult.user_id == friend_result['id'],
-                            UserDailyResult.challenge_token == todays_challenge.challenge_token
+                            UserDailyResult.user == user,
+                            UserDailyResult.challenge == todays_challenge
                         )
                         .first()
                     )
 
                     # If the friend has not submitted a score, insert the score into the UserDailyResult table
-                    if not user_daily_result:
-                        user_daily_result = UserDailyResult(
-                            user_id=friend_result['id'],
-                            score=friend_result['totalScore'],
-                            challenge_token=todays_challenge.challenge_token
-                        )
-                        new_results.append(user_daily_result)
-            except Exception as e:
-                print(f"Error occurred getting user_daily_result for user_id{friend_result['id']} and challenge_token{todays_challenge.challenge_token}: {e}")
-                return None
+                    if not user_daily_result and user:
 
-        
-        return new_results
+                        user_daily_result = UserDailyResult(
+                            user=user,
+                            score=friend_result['totalScore'],
+                            challenge=todays_challenge
+                        )
+                        session.add(user_daily_result)
+                        session.flush()
+                        new_result_ids.append(user_daily_result.user_daily_id)
+                
+        except Exception as e:
+            print(f"Error occurred getting todays_challenge from database: {e}")
+            return None
+            
+        return new_result_ids or None
 
     def _sign_in(self) -> str:
         """
@@ -149,7 +147,7 @@ class GeoguessrQueries:
 
         # Parse credentials from file
         config = configparser.ConfigParser()
-        config.read('../credentials.ini')  # replace with your credentials file path
+        config.read('credentials.ini')  # replace with your credentials file path
         username = config.get('Credentials', 'Username').strip("'")
         password = config.get('Credentials', 'Password').strip("'")
 
@@ -193,7 +191,7 @@ class GeoguessrQueries:
         """
         friends_endpoints = 'social/friends/summary'
         try:
-            users_results = self.session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
+            users_results = self.requests_session.get(f"{BASE_V3_URL}{friends_endpoints}").json()
         except Exception as e:
             print(f"Error occurred getting users_results: {e}")
             return
@@ -206,10 +204,10 @@ class GeoguessrQueries:
 
                 # Add self to users table if not already present
                 self_endpoint = 'profiles'
-                self_result = self.session.get(f"{BASE_V3_URL}{self_endpoint}").json()
+                self_result = self.requests_session.get(f"{BASE_V3_URL}{self_endpoint}").json()
                 self = self_result['user']
 
-                get_or_create(session, User, geo_id=self['userId'], geo_name=self['nick'])
+                get_or_create(session, User, geo_id=self['id'], geo_name=self['nick'])
         except Exception as e:
             print(f"Error occurred updating friends: {e}")
             return
