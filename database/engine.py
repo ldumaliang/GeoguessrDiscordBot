@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 
 # Create the engine and connect to the database
-engine = create_engine('sqlite:///geoguessrdiscordbot.db', echo=True)
+engine = create_engine('sqlite:///database/geoguessrdiscordbot.db', echo=True)
 Session = sessionmaker(bind=engine)
 
 def get_or_create(session, model, **kwargs):

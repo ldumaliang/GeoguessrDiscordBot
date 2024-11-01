@@ -1,5 +1,4 @@
 credentials.ini
-.vscode/launch.json
 geoguessr.db
 .env
 __pycache__/
