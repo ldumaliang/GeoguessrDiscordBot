@@ -75,6 +75,10 @@ class GeoguessrDiscordBot(commands.Bot):
         Args:
             token (str): The Discord bot token.
         """
+        log_dir = 'logs'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
         handler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
         self.run(token, log_handler=handler, log_level=logging.DEBUG)
 
