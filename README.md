@@ -10,13 +10,13 @@ This project is a Python-based tool that polls the Geoguessr Daily Challenge and
 
 Update the system env variables
 or
-Create a file called `.env` with data in the following format:
+Create a file called `.env` with data for the following fields:
 
-   DISCORD_TOKEN
-   GUILD_ID
-   GEOGUESSR_USERNAME
-   GEOGUESSR_PASSWORD
-   NCFA_TOKEN
+   - DISCORD_TOKEN
+   - GUILD_ID
+   - GEOGUESSR_USERNAME
+   - GEOGUESSR_PASSWORD
+   - NCFA_TOKEN
 
 ## Discord Bot
 
