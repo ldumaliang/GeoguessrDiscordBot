@@ -43,6 +43,7 @@ class GeoguessrDiscordBot(commands.Bot):
         intents.message_content = True
         Base.metadata.create_all(engine)
         self.message_channel = None
+        self.previous_results_message = None
         self.todays_thread = None
 
     async def on_ready(self):
@@ -159,6 +160,38 @@ def get_user_list_embed():
     
     return embed
 
+def get_todays_results_embed():
+    results_embed = discord.Embed(title="Todays Results", color=0xa5434d)
+
+    try:
+        with session_scope(bot) as session:
+            users_list = session.query(UserDailyResult).all()
+            results = "\n".join([f"{result.user.geo_name}: {result.score}" for result in users_list])
+    except Exception as e:
+        print(f"Error occurred getting all users: {e}")
+        return
+
+    # Add each user to the embed
+    results_embed.add_field(name="Results", value=f"{results}", inline=True)
+
+    return results_embed
+
+async def update_todays_results():
+    # Get todays results embed
+    results_embed = get_todays_results_embed()
+
+    # Try to find the previous results message
+    if bot.message_channel is not None:
+        try:
+            if bot.previous_results_message is not None:
+                await bot.previous_results_message.edit(embed=results_embed)
+            else:
+                bot.previous_results_message = await bot.message_channel.send(embed=results_embed)
+
+        except Exception as e:
+            print(f"Error occurred updating results message: {e}")
+
+
 async def create_thread():
     """
     Creates a new thread for the daily challenge.
@@ -167,6 +200,8 @@ async def create_thread():
     today = datetime.datetime.now(tz).strftime("%m-%d-%Y")
 
     if bot.message_channel is not None:
+        await update_todays_results()
+
         bot.todays_thread = await bot.message_channel.create_thread(name=today, type=discord.ChannelType.public_thread, auto_archive_duration=1440, reason=None )
         await bot.todays_thread.send(f'Spoiler thread for {today} Geoguessr Daily')
 
@@ -320,7 +355,7 @@ async def retry_daily_challenge(self):
         retry_daily_challenge.stop()
 
 
-@tasks.loop(seconds=5)
+@tasks.loop(seconds=60)
 async def check_daily_results_loop(self):
     """
     Task loop for checking the daily results.
@@ -352,9 +387,13 @@ async def check_daily_results_loop(self):
                     discord_mention = discord_user.mention
                 else:
                     discord_mention = user.geo_name
+
                 # send a message to a specific thread
+                await update_todays_results()
+
                 if bot.todays_thread is not None:
                     await bot.todays_thread.send(f"New result: {discord_mention} scored - {result.score} points!")
+
     except Exception as e:
         print(f"Error occurred checking daily results: {e}")
 

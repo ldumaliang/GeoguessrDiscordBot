@@ -6,6 +6,7 @@ import json
 import sched
 import sqlite3
 import time
+import os
 
 # Related third party imports
 import requests
@@ -13,6 +14,8 @@ import schedule
 
 # Local application/library specific imports
 from database import User, Challenge, UserDailyResult, engine, Session, Base, get_or_create, session_scope
+
+from dotenv import load_dotenv
 
 geoguessr_base_url = 'https://geoguessr.com/api'
 BASE_V3_URL = "https://www.geoguessr.com/api/v3/"  # Base URL for all V3 endpoints
@@ -27,19 +30,15 @@ class GeoguessrQueries:
     requests_session = None
 
     def __init__(self):
-        """
-        Initializes the GeoguessrQueries class by establishing a connection to the database.
-        """
-        #self.conn = sqlite3.connect('database/geoguessr.db')
-        #self.cursor = self.conn.cursor()
-    
+        load_dotenv()
 
     def update_geoguessr_session(self):
         """
         Updates the session with the necessary authentication token.
         """
+        self.ncfa_token = os.getenv('NCFA_TOKEN')
+
         #self.ncfa_token = self._sign_in()
-        self.ncfa_token = "HrU5g%2BuL3i3bez9ouVY0c1ehwhrsIXvTLZRBBC89t08%3DhV7SXD9XAYlNiYnzGkLokeuWLYQg6%2FE3Vh8AkjtH73nvdi%2BUVaiWvaQ2demuwQ8x3BN1OMbQE8lgtgtoRBybWbuHycFvKnXwb0CqAjgOE88%3D"
         self.requests_session = requests.Session()
         self.requests_session.cookies.set("_ncfa", self.ncfa_token, domain="www.geoguessr.com")
 
@@ -130,6 +129,7 @@ class GeoguessrQueries:
         return new_result_ids or None
 
     def _sign_in(self) -> str:
+
         """
         Signs into Geoguessr using the provided credentials.
 
@@ -145,11 +145,9 @@ class GeoguessrQueries:
         # Sign into Geoguessr
         sign_in_url = f'{BASE_V3_URL}{sign_in_endpoint}'
 
-        # Parse credentials from file
-        config = configparser.ConfigParser()
-        config.read('credentials.ini')  # replace with your credentials file path
-        username = config.get('Credentials', 'Username').strip("'")
-        password = config.get('Credentials', 'Password').strip("'")
+        # Get the Geoguessr username and password from the environment variables
+        username = os.getenv('GEOGUESSR_USERNAME')
+        password = os.getenv('GEOGUESSR_PASSWORD')
 
         sign_in_data = {
             'email': username,

@@ -6,20 +6,17 @@ This project is a Python-based tool that polls the Geoguessr Daily Challenge and
 
 ## Getting Started
 
-### Credential Configuration
+### Environment Variables
 
-Create a file called `credentials.ini` with data in the following format:
-
-    [CREDENTIALS]
-    Username: 'your username' 
-    Password: 'your password'
-
-### .env
-
+Update the system env variables
+or
 Create a file called `.env` with data in the following format:
 
-    DISCORD_TOKEN='your discord bot token'
-    GUILD_ID='your guild id'
+   DISCORD_TOKEN
+   GUILD_ID
+   GEOGUESSR_USERNAME
+   GEOGUESSR_PASSWORD
+   NCFA_TOKEN
 
 ## Discord Bot
 
