@@ -12,6 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 # Local application imports
 from GeoguessrQueries import GeoguessrQueries
 from database import User, Challenge, UserDailyResult, engine, Session, Base, get_or_create, session_scope
+from HealthCheck import start_health_check_server
 
 tz = datetime.timezone.utc
 midnight = datetime.time(hour=0, minute=0, second=0, microsecond=0, tzinfo=tz)
@@ -42,6 +43,9 @@ class GeoguessrDiscordBot(commands.Bot):
         intents = intents
         intents.message_content = True
         Base.metadata.create_all(engine)
+
+        start_health_check_server()
+
         self.message_channel = None
         self.previous_results_message = None
         self.todays_thread = None
