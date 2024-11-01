@@ -7,9 +7,11 @@ import os
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
+from sqlalchemy.orm.exc import NoResultFound
 
 # Local application imports
 from GeoguessrQueries import GeoguessrQueries
+from database import User, Challenge, UserDailyResult, engine, Session, Base, get_or_create, session_scope
 
 tz = datetime.timezone.utc
 midnight = datetime.time(hour=0, minute=0, second=0, microsecond=0, tzinfo=tz)
@@ -39,7 +41,9 @@ class GeoguessrDiscordBot(commands.Bot):
         super().__init__(command_prefix, intents=intents)
         intents = intents
         intents.message_content = True
+        Base.metadata.create_all(engine)
         self.message_channel = None
+        self.previous_results_message = None
         self.todays_thread = None
 
     async def on_ready(self):
@@ -47,7 +51,7 @@ class GeoguessrDiscordBot(commands.Bot):
         Event handler for when the bot is ready.
         """
         print(f'We have logged in as {self.user}')
-        await update_session(self)
+        await update_geoguessr_session(self)
         get_daily_challenge_loop.start(self)
         check_daily_results_loop.start(self)
 
@@ -98,27 +102,36 @@ async def register(ctx, provided_name: str):
     Returns:
         None
     """
-    discord_user_id = ctx.user.id
-    discord_user_display_name = ctx.user.display_name
+    current_user = ctx.user
+    current_user_id = current_user.id
 
-    if geo_query.db.get_user_by_discord_id(discord_user_id) is not None:
-        # Send a response that the user is already registered
-        await ctx.response.send_message(f"{discord_user_display_name} is already registered with Geoguessr Name")
-        return
+    try:
+        with session_scope(bot) as session:
 
-    successfully_registered = False
+            # Check if the user is already registered to a geoguessr account
+            if session.query(User).filter(User.discord_id == current_user_id).one_or_none() is not None:
+                name = current_user.name
+                await ctx.channel.send(f"{name} is already registered with Geoguessr Name")
+                raise Exception("User already registered")
 
-    if provided_name is not None:
-        successfully_registered = geo_query.db.set_user_discord_id(provided_name, discord_user_id, discord_user_display_name)
+            user = session.query(User).filter(User.geo_name == provided_name).one()
+            user.discord_id = current_user_id
+
+    except NoResultFound:
+        await ctx.channel.send(f"Geoguessr Name: {provided_name} not found")
+    except Exception as e:
+        print(f"Error occurred registering discord_id {current_user_id}: {e}")
+        await ctx.channel.send(f"Failed to register Geoguessr Name: {provided_name}")
+
 
     icon_png = discord.File("assets/GeoguessrDiscordIcon.png", filename="icon.png")
     embed = get_user_list_embed()
 
     # Send the embed
-    await ctx.channel.send(file=icon_png, embed=embed)
-    await ctx.response.send_message(f"{discord_user_display_name} {'successfully' if successfully_registered else 'failed to'} register Geoguessr Name: {provided_name}")
+    await ctx.response.send_message(file=icon_png, embed=embed)
+    #await ctx.response.send_message(f"{current_user.name} ' successfully registered Geoguessr Name: {provided_name}")
 
-def get_user_list_embed(successfully_registered=False):
+def get_user_list_embed():
     """
     Creates an embed containing the list of registered users.
 
@@ -131,21 +144,53 @@ def get_user_list_embed(successfully_registered=False):
     # Create an embed
     embed = discord.Embed(title="List of User", color=0xa5434d)
 
-    users_list = geo_query.db.get_all_users()
-
-    geo_names = "\n".join([f"{user[2]}" for user in users_list])
-    discord_names = "\n".join([f"{user[3] if user[3] else '*Unregistered*'}" for user in users_list])
+    try:
+        with session_scope(bot) as session:
+            users_list = session.query(User).all()
+            geo_names = "\n".join([f"{user.geo_name}" for user in users_list])
+            discord_names = "\n".join([f"{'**Registered**' if user.discord_id else '*Unregistered*'}" for user in users_list])
+    except Exception as e:
+        print(f"Error occurred getting all users: {e}")
+        return
 
     # Add each user to the embed
     embed.add_field(name="Geoguessr Name", value=f"{geo_names}", inline=True)
-    embed.add_field(name="Registered Discord Name", value=f"{discord_names}", inline=True)
-
-    if successfully_registered is False:
-        embed.set_footer(text="Usage: /register 'Geoguessr Name'", icon_url="attachment://icon.png")
-    else:
-        embed.set_footer(icon_url="attachment://icon.png")
+    embed.add_field(name="Registered Status", value=f"{discord_names}", inline=True)
+    embed.set_footer(icon_url="attachment://icon.png")
     
     return embed
+
+def get_todays_results_embed():
+    results_embed = discord.Embed(title="Todays Results", color=0xa5434d)
+
+    try:
+        with session_scope(bot) as session:
+            users_list = session.query(UserDailyResult).all()
+            results = "\n".join([f"{result.user.geo_name}: {result.score}" for result in users_list])
+    except Exception as e:
+        print(f"Error occurred getting all users: {e}")
+        return
+
+    # Add each user to the embed
+    results_embed.add_field(name="Results", value=f"{results}", inline=True)
+
+    return results_embed
+
+async def update_todays_results():
+    # Get todays results embed
+    results_embed = get_todays_results_embed()
+
+    # Try to find the previous results message
+    if bot.message_channel is not None:
+        try:
+            if bot.previous_results_message is not None:
+                await bot.previous_results_message.edit(embed=results_embed)
+            else:
+                bot.previous_results_message = await bot.message_channel.send(embed=results_embed)
+
+        except Exception as e:
+            print(f"Error occurred updating results message: {e}")
+
 
 async def create_thread():
     """
@@ -154,8 +199,11 @@ async def create_thread():
     # Get today's UTC date in a human-readable format
     today = datetime.datetime.now(tz).strftime("%m-%d-%Y")
 
-    bot.todays_thread = await bot.message_channel.create_thread(name=today, type=discord.ChannelType.public_thread, auto_archive_duration=1440, reason=None )
-    await bot.todays_thread.send(f'Spoiler thread for {today} Geoguessr Daily')
+    if bot.message_channel is not None:
+        await update_todays_results()
+
+        bot.todays_thread = await bot.message_channel.create_thread(name=today, type=discord.ChannelType.public_thread, auto_archive_duration=1440, reason=None )
+        await bot.todays_thread.send(f'Spoiler thread for {today} Geoguessr Daily')
 
 @bot.command()
 async def sync_commands(ctx):
@@ -207,7 +255,7 @@ async def update_daily(ctx):
         None
     """
     print("Update Daily Challenge token")
-    await get_daily_challenge()
+    await get_daily_challenge(True)
 
 @bot.command()
 async def update_friends(ctx):
@@ -221,10 +269,10 @@ async def update_friends(ctx):
         None
     """
     print("Update Friends List")
-    geo_query.update_friends(geo_query.session)
+    geo_query.update_friends()
 
 @bot.command()
-async def update_session(ctx):
+async def update_geoguessr_session(ctx):
     """
     Updates the session.
 
@@ -235,29 +283,11 @@ async def update_session(ctx):
         None
     """
     print("Update Session")
-    geo_query.update_session()
+    geo_query.update_geoguessr_session()
 
 @bot.command()
 async def get_db_data(ctx, table_name):
-    """
-    Retrieves data from the database table.
-
-    Args:
-        ctx (discord.ext.commands.Context): The command context.
-        table_name (str): The name of the database table.
-
-    Returns:
-        None
-    """
-    print("Getting DB Data")
-    db_data = geo_query.get_db_data(table_name)
-    if db_data is not None:
-        formatted_data = ''
-        formatted_data += '\n'.join([' | '.join(map(str, row)) for row in db_data])
-        # Send a response containing formatted table data
-        await ctx.send(formatted_data)
-    else:
-        await ctx.send("No data found in table")
+    return
 
 @bot.command()
 async def enable(ctx):
@@ -289,7 +319,7 @@ async def get_daily_challenge_loop(self):
     """
     await get_daily_challenge()
 
-async def get_daily_challenge():
+async def get_daily_challenge(manual_attempt=False):
     """
     Gets the daily challenge and creates a thread.
 
@@ -298,16 +328,19 @@ async def get_daily_challenge():
     """
     # get the daily challenge
     print("getting daily challenge")
-    success = geo_query.get_daily_challenge_token()
-    if success is False:
-        retry_daily_challenge.start(bot)
-    else:
+    try:
+        geo_query.get_daily_challenge_token()
         await create_thread()
+    except Exception as e:
+        print(f"Error occurred getting daily challenge: {e}")
+        if manual_attempt is False:
+            retry_daily_challenge.start(bot)
 
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=1, count=5)
 async def retry_daily_challenge(self):
     """
-    Task loop for retrying to get the daily challenge.
+    Task loop for retrying to get the daily challenge. 
+    Attempts up to 5 times every minute.
 
     Args:
         self: The GeoguessrDiscordBot instance.
@@ -322,7 +355,7 @@ async def retry_daily_challenge(self):
         retry_daily_challenge.stop()
 
 
-@tasks.loop(seconds=5)
+@tasks.loop(seconds=60)
 async def check_daily_results_loop(self):
     """
     Task loop for checking the daily results.
@@ -334,22 +367,35 @@ async def check_daily_results_loop(self):
         None
     """
     # check the daily results
-    print("checking daily results")
-    new_results = geo_query.check_for_new_results()
+    print("Checking daily results")
+    
+    # Returns a list of UserDailyResults
+    new_result_ids = geo_query.check_for_new_results()
 
-    if new_results is None:
+    if new_result_ids is None:
         return
+    
+    try:
+        with session_scope(bot) as session:
+            new_results = session.query(UserDailyResult).filter(UserDailyResult.user_daily_id.in_(new_result_ids)).all()
 
-    for result in new_results:
-        discord_mention = ''
-        if result[3] is not None:
-            discord_user = await self.fetch_user(result[3])
-            discord_mention = discord_user.mention
-        else:
-            discord_mention = result[0]
-        # send a message to a specific thread
-        if bot.todays_thread is not None:
-            await bot.todays_thread.send(f"New result: {discord_mention} scored - {result[1]} points!")
+            for result in new_results:
+                # Get the user associated with the result
+                user = result.user
+                if user.discord_id is not None:
+                    discord_user = await self.fetch_user(user.discord_id)
+                    discord_mention = discord_user.mention
+                else:
+                    discord_mention = user.geo_name
+
+                # send a message to a specific thread
+                await update_todays_results()
+
+                if bot.todays_thread is not None:
+                    await bot.todays_thread.send(f"New result: {discord_mention} scored - {result.score} points!")
+
+    except Exception as e:
+        print(f"Error occurred checking daily results: {e}")
 
 
 # Run the client
