@@ -1,12 +1,6 @@
-import sys
 import unittest
 
-import sys
-import os
-
-sys.path.append("app")
-
-from GeoguessrDatabase import GeoguessrDatabase
+from app.database import GeoguessrDatabase
 
 class TestGeoguessrDatabase(unittest.TestCase):
     def setUp(self):
