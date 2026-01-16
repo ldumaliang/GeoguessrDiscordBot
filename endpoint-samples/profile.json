@@ -1,0 +1,17 @@
+{
+  "userId": "000000000000000000000999",
+  "url": "/user/000000000000000000000999",
+  "nick": "ExampleUser",
+  "pin": {
+    "url": "pin/example-pin-profile.png",
+    "anchor": "center-center",
+    "isDefault": true
+  },
+  "isProUser": true,
+  "isVerified": false,
+  "avatar": {
+    "fullBodyPath": "pin/example-avatar-profile.png"
+  },
+  "flair": 0,
+  "countryCode": "us"
+}

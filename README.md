@@ -1,46 +1,61 @@
-[![Python application](https://github.com/ldumaliang/GeoguessrDiscordBot/actions/workflows/python-app.yml/badge.svg)](https://github.com/ldumaliang/GeoguessrDiscordBot/actions/workflows/python-app.yml)
+# GeoGuessr Daily Friends → Discord
 
-# GeoGuessr Daily Challenge Bot
+Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a Discord channel via a webhook.
 
-This project is a Python-based tool that polls the Geoguessr Daily Challenge and posts the results to discord
+## Features
 
-## Getting Started
+- GeoGuessr Daily Challenge “friends” leaderboard for the logged-in account.
+- Discord webhook post with a clean, table-like message.
+- Retries with exponential backoff for transient errors (429/5xx).
+- Optional idempotency via a cached daily token.
+- Scheduled daily via GitHub Actions.
 
-### Environment Variables
+## Prerequisites
 
-Update the system env variables
-or
-Create a file called `.env` with data for the following fields:
+- Node.js 20+
+- A GeoGuessr session cookie
+- A Discord webhook URL
 
-   - DISCORD_TOKEN
-   - GUILD_ID
-   - GEOGUESSR_USERNAME
-   - GEOGUESSR_PASSWORD
-   - NCFA_TOKEN
+## Setup
 
-## Discord Bot
+### 1) Get `GEOGUESSR_COOKIE`
 
-Required Permissions = 17998732324080
+1. Log into GeoGuessr in your browser.
+2. Open DevTools → **Application** (Chrome) or **Storage** (Firefox).
+3. Under **Cookies**, select `https://www.geoguessr.com`.
+4. Copy the full cookie string (e.g. `_ncfa=...; othercookie=...`).
+5. Store it in an environment variable named `GEOGUESSR_COOKIE`.
 
-### Discord Bot Commands
+### 2) Create a Discord Webhook
 
-#### Slash Commands (user facing)
+1. In Discord, go to your server → **Edit Channel** → **Integrations**.
+2. Create a **Webhook**, select the target channel, and copy the URL.
+3. Store it in `DISCORD_WEBHOOK_URL`.
 
-1. **/register** - Registers a user with their Geoguessr name.
-    - Usage: `.register 'Geoguessr Name'`
+### 3) Local Run
 
+```bash
+npm install
+GEOGUESSR_COOKIE="..." DISCORD_WEBHOOK_URL="..." npm run start
+```
 
-#### Dot Commands (for admins)
+### Distance Assumption
 
-1. **sync_commands** - Syncs the bot commands with the guild
-   - Usage: `.sync_commands`
-2. **clear_commands** - Clears the bot commands for the guild
-   - Usage: `.clear_commands`
-3. **update_daily** - Updates the daily challenge token
-   - Usage: `.update_daily`
-4. **update_friends** - Updates the friends list
-   - Usage: `.update_friends`
-5. **update_session** - Executes a new sign-in request and updates the stored session cookie
-   - Usage: `.update_session`
-6. **enable** - Marks the current channel as the active channel for thread creation
-   - Usage: `.enable`
+GeoGuessr `totalDistance` appears to be either kilometers or meters. This app assumes values > 1000 are meters and converts to kilometers, otherwise uses the value as-is.
+
+## Project Structure
+
+```
+.
+├── .cache/                # cached token for idempotency
+├── .github/workflows/
+│   └── daily.yml
+├── src/
+│   ├── discord.ts
+│   ├── format.ts
+│   ├── geoguessr.ts
+│   └── index.ts
+├── .env.example
+├── package.json
+└── tsconfig.json
+```

@@ -1,0 +1,124 @@
+{
+  "gamesPlayed": 120,
+  "roundsPlayed": 600,
+  "maxGameScore": {
+    "amount": "25000",
+    "unit": "points",
+    "percentage": 100
+  },
+  "averageGameScore": {
+    "amount": "16250",
+    "unit": "points",
+    "percentage": 65
+  },
+  "maxRoundScore": {
+    "amount": "5000",
+    "unit": "points",
+    "percentage": 100
+  },
+  "streakGamesPlayed": 6,
+  "closestDistance": {
+    "meters": {
+      "amount": "2.5",
+      "unit": "m"
+    },
+    "miles": {
+      "amount": "2.7",
+      "unit": "yd"
+    }
+  },
+  "averageDistance": {
+    "meters": {
+      "amount": "850.4",
+      "unit": "km"
+    },
+    "miles": {
+      "amount": "528.4",
+      "unit": "miles"
+    }
+  },
+  "averageTime": "13250.250 s",
+  "timedOutGuesses": 4,
+  "battleRoyaleStats": [
+    {
+      "key": "Countries",
+      "value": {
+        "gamesPlayed": 2,
+        "wins": 1,
+        "averagePosition": 3
+      }
+    },
+    {
+      "key": "Distance",
+      "value": {
+        "gamesPlayed": 5,
+        "wins": 0,
+        "averagePosition": 8
+      }
+    }
+  ],
+  "dailyChallengeStreak": 12,
+  "dailyChallengeCurrentStreak": 2,
+  "dailyChallengesRolling7Days": [
+    {
+      "date": "2025-01-01T12:00:00.000Z",
+      "challengeToken": "ExampleTokenA1",
+      "totalScore": 12450,
+      "bestRoundScore": 4820,
+      "totalTime": 520,
+      "longestTime": 170,
+      "shortestTime": 90,
+      "closestDistance": 32500.12,
+      "totalDistance": 284500.5
+    },
+    {
+      "date": "2025-01-02T12:00:00.000Z",
+      "challengeToken": "ExampleTokenB2",
+      "totalScore": 18720,
+      "bestRoundScore": 4980,
+      "totalTime": 600,
+      "longestTime": 180,
+      "shortestTime": 120,
+      "closestDistance": 14800.45,
+      "totalDistance": 198750.75
+    }
+  ],
+  "dailyChallengeMedal": 20,
+  "streakMedals": [
+    {
+      "key": "UsStateStreak",
+      "value": 1
+    },
+    {
+      "key": "MapIdExample",
+      "value": 3
+    },
+    {
+      "key": "CountryStreak",
+      "value": 0
+    }
+  ],
+  "streakRecords": [
+    {
+      "key": "UsStateStreak",
+      "value": {
+        "maxStreak": 2,
+        "maxStreakDate": "2024-07-01T10:15:00.000Z"
+      }
+    },
+    {
+      "key": "MapIdExample",
+      "value": {
+        "maxStreak": 6,
+        "maxStreakDate": "2024-11-05T18:30:00.000Z"
+      }
+    },
+    {
+      "key": "CountryStreak",
+      "value": {
+        "maxStreak": 1,
+        "maxStreakDate": "2024-12-20T08:00:00.000Z"
+      }
+    }
+  ]
+}

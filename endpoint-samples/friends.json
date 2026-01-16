@@ -1,0 +1,159 @@
+{
+  "friends": [
+    {
+      "userId": "000000000000000000000001",
+      "url": "/user/000000000000000000000001",
+      "nick": "ExampleFriendOne",
+      "pin": {
+        "url": "pin/example-pin-1.png",
+        "anchor": "center-center",
+        "isDefault": false
+      },
+      "isProUser": false,
+      "isVerified": false,
+      "progress": {
+        "xp": 12345,
+        "level": 12,
+        "levelXp": 12000,
+        "nextLevel": 13,
+        "nextLevelXp": 13500,
+        "title": {
+          "id": 40,
+          "tierId": 20
+        },
+        "competitionMedals": {
+          "bronze": 1,
+          "silver": 0,
+          "gold": 0,
+          "platinum": 0
+        }
+      },
+      "isOnline": false,
+      "activity": null,
+      "avatar": {
+        "fullBodyPath": "pin/example-avatar-1.png"
+      },
+      "flair": 0,
+      "countryCode": "us"
+    },
+    {
+      "userId": "000000000000000000000002",
+      "url": "/user/000000000000000000000002",
+      "nick": "ExampleFriendTwo",
+      "pin": {
+        "url": "pin/example-pin-2.png",
+        "anchor": "center-center",
+        "isDefault": false
+      },
+      "isProUser": true,
+      "isVerified": false,
+      "progress": {
+        "xp": 54321,
+        "level": 37,
+        "levelXp": 52000,
+        "nextLevel": 38,
+        "nextLevelXp": 56000,
+        "title": {
+          "id": 110,
+          "tierId": 40
+        },
+        "competitionMedals": {
+          "bronze": 0,
+          "silver": 2,
+          "gold": 1,
+          "platinum": 0
+        }
+      },
+      "isOnline": true,
+      "activity": null,
+      "avatar": {
+        "fullBodyPath": "pin/example-avatar-2.png"
+      },
+      "flair": 0,
+      "countryCode": "gb"
+    }
+  ],
+  "friendsCount": 2,
+  "hasMore": false,
+  "friendChatRooms": [],
+  "requests": [],
+  "recommendations": [
+    {
+      "candidate": {
+        "userId": "000000000000000000000010",
+        "url": "/user/000000000000000000000010",
+        "nick": "ExampleCandidate",
+        "pin": {
+          "url": "pin/example-pin-3.png",
+          "anchor": "center-center",
+          "isDefault": false
+        },
+        "isProUser": false,
+        "isVerified": false,
+        "progress": {
+          "xp": 200,
+          "level": 2,
+          "levelXp": 150,
+          "nextLevel": 3,
+          "nextLevelXp": 300,
+          "title": {
+            "id": 10,
+            "tierId": 10
+          },
+          "competitionMedals": {
+            "bronze": 0,
+            "silver": 0,
+            "gold": 0,
+            "platinum": 0
+          }
+        },
+        "isOnline": false,
+        "activity": null,
+        "avatar": {
+          "fullBodyPath": "pin/example-avatar-3.png"
+        },
+        "flair": 0,
+        "countryCode": "ca"
+      },
+      "recommendationReason": 1,
+      "commonFriendsCount": 1,
+      "commonFriendSample": {
+        "userId": "000000000000000000000002",
+        "url": "/user/000000000000000000000002",
+        "nick": "ExampleFriendTwo",
+        "pin": {
+          "url": "pin/example-pin-2.png",
+          "anchor": "center-center",
+          "isDefault": false
+        },
+        "isProUser": true,
+        "isVerified": false,
+        "progress": {
+          "xp": 54321,
+          "level": 37,
+          "levelXp": 52000,
+          "nextLevel": 38,
+          "nextLevelXp": 56000,
+          "title": {
+            "id": 110,
+            "tierId": 40
+          },
+          "competitionMedals": {
+            "bronze": 0,
+            "silver": 2,
+            "gold": 1,
+            "platinum": 0
+          }
+        },
+        "isOnline": false,
+        "activity": null,
+        "avatar": {
+          "fullBodyPath": "pin/example-avatar-2.png"
+        },
+        "flair": 0,
+        "countryCode": "gb"
+      },
+      "playCount": -1
+    }
+  ]
+}
