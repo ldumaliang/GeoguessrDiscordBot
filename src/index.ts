@@ -14,16 +14,8 @@ function getAuthCookie(): string {
     return `_ncfa=${ncfaToken}`;
   }
 
-  const cookie = process.env.GEOGUESSR_COOKIE?.trim();
-  if (cookie) {
-    if (cookie.startsWith("_ncfa=") || cookie.includes(";")) {
-      return cookie;
-    }
-    return `_ncfa=${cookie}`;
-  }
-
   throw new Error(
-    "Missing NCFA_TOKEN or GEOGUESSR_COOKIE environment variable."
+    "Missing NCFA_TOKEN environment variable."
   );
 }
 

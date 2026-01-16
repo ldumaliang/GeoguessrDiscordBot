@@ -31,6 +31,6 @@ jobs:
 
       - name: Run daily job
         env:
-          GEOGUESSR_COOKIE: ${{ secrets.GEOGUESSR_COOKIE }}
+          NCFA_TOKEN: ${{ secrets.NCFA_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: npm run start
