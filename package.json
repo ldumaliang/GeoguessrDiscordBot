@@ -1,0 +1,21 @@
+{
+  "name": "geoguessr-discord-daily",
+  "version": "1.0.0",
+  "description": "Fetch GeoGuessr Daily Challenge friends results and post to Discord.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

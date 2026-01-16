@@ -1,5 +1,4 @@
-credentials.ini
-geoguessr.db
+node_modules/
+dist/
 .env
-__pycache__/
-logs/*
+.cache/

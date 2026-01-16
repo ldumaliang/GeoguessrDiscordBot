@@ -3,12 +3,5 @@
         {
             "path": "."
         }
-    ],
-    "settings": {
-        "cSpell.words": [
-            "dotenv",
-            "Geoguessr"
-        ],
-        "editor.fontSize": 12
-    }
+    ]
 }
