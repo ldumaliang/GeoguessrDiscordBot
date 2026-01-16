@@ -2,11 +2,13 @@ import { z } from "zod";
 
 const PROFILE_SCHEMA = z
   .object({
-    userId: z.string(),
-    nick: z.string(),
-    countryCode: z.string().nullable().optional(),
-    isVerified: z.boolean().optional(),
-    flair: z.unknown().optional()
+    user: z.object({
+      id: z.string(),
+      nick: z.string(),
+      countryCode: z.string().nullable().optional(),
+      isVerified: z.boolean().optional(),
+      pin: z.unknown().optional()
+    })
   })
   .passthrough();
 
@@ -43,6 +45,7 @@ const USER_STATS_SCHEMA = z
   .passthrough();
 
 export type FriendSummary = z.infer<typeof FRIEND_SCHEMA>;
+export type ProfileResponse = z.infer<typeof PROFILE_SCHEMA>;
 export type DailyChallengeEntry = z.infer<typeof DAILY_ENTRY_SCHEMA>;
 
 export type DailyFriendResult = {
@@ -101,6 +104,14 @@ async function fetchWithRetry(
   return response;
 }
 
+function buildAuthHeaders(cookie: string): HeadersInit {
+  return {
+    Accept: "application/json",
+    Cookie: cookie,
+    "User-Agent": DEFAULT_USER_AGENT
+  };
+}
+
 function getChallengeDayKey(
   date: string,
   closeHourUtc: number,
@@ -133,11 +144,7 @@ async function fetchProfile(cookie: string): Promise<FriendSummary> {
   const response = await fetchWithRetry(
     "https://www.geoguessr.com/api/v3/profiles",
     {
-      headers: {
-        Accept: "application/json",
-        Cookie: cookie,
-        "User-Agent": DEFAULT_USER_AGENT
-      }
+      headers: buildAuthHeaders(cookie)
     }
   );
 
@@ -156,18 +163,22 @@ async function fetchProfile(cookie: string): Promise<FriendSummary> {
     );
   }
 
-  return parsed.data;
+  const userProfile = parsed.data.user;
+  console.log(`Retrieved profile for user: ${userProfile.nick} (${userProfile.id})`);
+  
+  return {
+    userId: userProfile.id,
+    nick: userProfile.nick,
+    countryCode: userProfile.countryCode,
+    isVerified: userProfile.isVerified
+  };
 }
 
 async function fetchFriendsSummary(cookie: string): Promise<FriendSummary[]> {
   const response = await fetchWithRetry(
     "https://www.geoguessr.com/api/v3/social/friends/summary",
     {
-      headers: {
-        Accept: "application/json",
-        Cookie: cookie,
-        "User-Agent": DEFAULT_USER_AGENT
-      }
+      headers: buildAuthHeaders(cookie)
     }
   );
 
@@ -196,11 +207,7 @@ async function fetchUserStats(
   const response = await fetchWithRetry(
     `https://www.geoguessr.com/api/v3/users/${userId}/stats`,
     {
-      headers: {
-        Accept: "application/json",
-        Cookie: cookie,
-        "User-Agent": DEFAULT_USER_AGENT
-      }
+      headers: buildAuthHeaders(cookie)
     }
   );
 

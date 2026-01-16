@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fetchDailyChallengeResults } from "./geoguessr.js";
@@ -6,6 +7,25 @@ import { buildLeaderboardMessage } from "./format.js";
 
 const CACHE_DIR = ".cache";
 const CACHE_FILE = "last_token.txt";
+
+function getAuthCookie(): string {
+  const ncfaToken = process.env.NCFA_TOKEN?.trim();
+  if (ncfaToken) {
+    return `_ncfa=${ncfaToken}`;
+  }
+
+  const cookie = process.env.GEOGUESSR_COOKIE?.trim();
+  if (cookie) {
+    if (cookie.startsWith("_ncfa=") || cookie.includes(";")) {
+      return cookie;
+    }
+    return `_ncfa=${cookie}`;
+  }
+
+  throw new Error(
+    "Missing NCFA_TOKEN or GEOGUESSR_COOKIE environment variable."
+  );
+}
 
 function parseIntEnv(
   name: string,
@@ -43,12 +63,8 @@ async function writeLastToken(token: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  const cookie = process.env.GEOGUESSR_COOKIE;
+  const cookie = getAuthCookie();
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-
-  if (!cookie) {
-    throw new Error("Missing GEOGUESSR_COOKIE environment variable.");
-  }
 
   if (!webhookUrl) {
     throw new Error("Missing DISCORD_WEBHOOK_URL environment variable.");
