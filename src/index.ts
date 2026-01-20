@@ -1,22 +1,20 @@
 import "dotenv/config";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { fetchDailyChallengeResults } from "./geoguessr.js";
+import { refreshNcfaToken, resolveNcfaToken } from "./auth.js";
+import {
+  fetchDailyChallengeResults,
+  GeoGuessrAuthError,
+  type DailyChallengeResults
+} from "./geoguessr.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
 
 const CACHE_DIR = ".cache";
 const CACHE_FILE = "last_token.txt";
 
-function getAuthCookie(): string {
-  const ncfaToken = process.env.NCFA_TOKEN?.trim();
-  if (ncfaToken) {
-    return `_ncfa=${ncfaToken}`;
-  }
-
-  throw new Error(
-    "Missing NCFA_TOKEN environment variable."
-  );
+function buildAuthCookie(token: string): string {
+  return `_ncfa=${token}`;
 }
 
 function parseIntEnv(
@@ -55,7 +53,6 @@ async function writeLastToken(token: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  const cookie = getAuthCookie();
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
   if (!webhookUrl) {
@@ -70,10 +67,30 @@ async function run(): Promise<void> {
     59
   );
 
-  const daily = await fetchDailyChallengeResults(cookie, {
-    closeHourUtc,
-    closeMinuteUtc
-  });
+  let token = await resolveNcfaToken();
+  let cookie = buildAuthCookie(token);
+  let daily: DailyChallengeResults;
+
+  try {
+    daily = await fetchDailyChallengeResults(cookie, {
+      closeHourUtc,
+      closeMinuteUtc
+    });
+  } catch (error) {
+    if (!(error instanceof GeoGuessrAuthError)) {
+      throw error;
+    }
+
+    console.warn(
+      `GeoGuessr auth failed (${error.status}). Refreshing NCFA token and retrying.`
+    );
+    token = await refreshNcfaToken();
+    cookie = buildAuthCookie(token);
+    daily = await fetchDailyChallengeResults(cookie, {
+      closeHourUtc,
+      closeMinuteUtc
+    });
+  }
 
   const cacheKey = daily.challengeToken ?? daily.date;
   const lastToken = await readLastToken();

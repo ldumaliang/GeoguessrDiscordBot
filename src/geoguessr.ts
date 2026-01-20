@@ -65,6 +65,16 @@ export type DailyChallengeResults = {
   results: DailyFriendResult[];
 };
 
+export class GeoGuessrAuthError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "GeoGuessrAuthError";
+    this.status = status;
+  }
+}
+
 type CloseConfig = {
   closeHourUtc: number;
   closeMinuteUtc: number;
@@ -102,6 +112,23 @@ async function fetchWithRetry(
   }
 
   return response;
+}
+
+async function assertResponseOk(
+  response: Response,
+  context: string
+): Promise<void> {
+  if (response.ok) {
+    return;
+  }
+
+  const body = await response.text();
+  const message = `GeoGuessr ${context} request failed (${response.status}): ${body.slice(0, 200)}`;
+  if (response.status === 401 || response.status === 403) {
+    throw new GeoGuessrAuthError(message, response.status);
+  }
+
+  throw new Error(message);
 }
 
 function buildAuthHeaders(cookie: string): HeadersInit {
@@ -148,12 +175,7 @@ async function fetchProfile(cookie: string): Promise<FriendSummary> {
     }
   );
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `GeoGuessr profile request failed (${response.status}): ${body.slice(0, 200)}`
-    );
-  }
+  await assertResponseOk(response, "profile");
 
   const data = await response.json();
   const parsed = PROFILE_SCHEMA.safeParse(data);
@@ -182,12 +204,7 @@ async function fetchFriendsSummary(cookie: string): Promise<FriendSummary[]> {
     }
   );
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `GeoGuessr friends request failed (${response.status}): ${body.slice(0, 200)}`
-    );
-  }
+  await assertResponseOk(response, "friends");
 
   const data = await response.json();
   const parsed = FRIENDS_RESPONSE_SCHEMA.safeParse(data);
@@ -211,12 +228,7 @@ async function fetchUserStats(
     }
   );
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `GeoGuessr stats request failed (${response.status}): ${body.slice(0, 200)}`
-    );
-  }
+  await assertResponseOk(response, "stats");
 
   const data = await response.json();
   const parsed = USER_STATS_SCHEMA.safeParse(data);
@@ -283,6 +295,9 @@ export async function fetchDailyChallengeResults(
         flair: user.flair
       });
     } catch (error) {
+      if (error instanceof GeoGuessrAuthError) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`GeoGuessr stats request failed for ${user.userId}: ${message}`);
     }
