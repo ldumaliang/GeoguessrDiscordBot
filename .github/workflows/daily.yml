@@ -7,7 +7,29 @@ on:
   pull_request: {}
 
 jobs:
+  simulate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run simulation
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL_PR }}
+        run: npm run simulate
+
   run-daily:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,5 +55,5 @@ jobs:
       - name: Run daily job
         env:
           NCFA_TOKEN: ${{ secrets.NCFA_TOKEN }}
-          DISCORD_WEBHOOK_URL: ${{ github.event_name == 'pull_request' && secrets.DISCORD_WEBHOOK_URL_PR || secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: npm run start

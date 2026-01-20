@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const PROFILE_SCHEMA = z
+export const PROFILE_SCHEMA = z
   .object({
     user: z.object({
       id: z.string(),
@@ -12,7 +12,7 @@ const PROFILE_SCHEMA = z
   })
   .passthrough();
 
-const FRIEND_SCHEMA = z
+export const FRIEND_SCHEMA = z
   .object({
     userId: z.string(),
     nick: z.string(),
@@ -22,13 +22,13 @@ const FRIEND_SCHEMA = z
   })
   .passthrough();
 
-const FRIENDS_RESPONSE_SCHEMA = z
+export const FRIENDS_RESPONSE_SCHEMA = z
   .object({
     friends: z.array(FRIEND_SCHEMA)
   })
   .passthrough();
 
-const DAILY_ENTRY_SCHEMA = z
+export const DAILY_ENTRY_SCHEMA = z
   .object({
     date: z.string(),
     challengeToken: z.string(),
@@ -38,7 +38,7 @@ const DAILY_ENTRY_SCHEMA = z
   })
   .passthrough();
 
-const USER_STATS_SCHEMA = z
+export const USER_STATS_SCHEMA = z
   .object({
     dailyChallengesRolling7Days: z.array(DAILY_ENTRY_SCHEMA).optional()
   })
@@ -112,7 +112,7 @@ function buildAuthHeaders(cookie: string): HeadersInit {
   };
 }
 
-function getChallengeDayKey(
+export function getChallengeDayKey(
   date: string,
   closeHourUtc: number,
   closeMinuteUtc: number
