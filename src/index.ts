@@ -82,6 +82,11 @@ async function run(): Promise<void> {
     return;
   }
 
+  if (daily.results.length === 0) {
+    console.log("No completed daily challenges yet. Skipping Discord post.");
+    return;
+  }
+
   const message = buildLeaderboardMessage(daily);
   await postDiscordMessage(webhookUrl, message);
   await writeLastToken(cacheKey);
