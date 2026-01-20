@@ -36,6 +36,8 @@ providing your GeoGuessr credentials so the app can sign in and cache a token.
 1. Set `GEOGUESSR_EMAIL` and `GEOGUESSR_PASSWORD`.
 2. On first run, the app signs in, logs the sign-in response details, and
    caches the `_ncfa` token in `.cache/ncfa_token.txt`.
+3. (Optional) Override `GEOGUESSR_SIGNIN_URL` if GeoGuessr updates the sign-in
+   endpoint.
 
 ### 2) Create a Discord Webhook
 

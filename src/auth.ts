@@ -3,7 +3,9 @@ import { join } from "node:path";
 
 const CACHE_DIR = ".cache";
 const NCFA_CACHE_FILE = "ncfa_token.txt";
-const SIGN_IN_URL = "https://www.geoguessr.com/api/v3/accounts/signin";
+const SIGN_IN_URL =
+  process.env.GEOGUESSR_SIGNIN_URL ??
+  "https://www.geoguessr.com/api/v3/accounts/signin";
 const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
@@ -51,9 +53,12 @@ async function signIn(): Promise<SignInResponse> {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+      "Accept-Language": "en-US,en;q=0.9",
+      Origin: "https://www.geoguessr.com",
+      Referer: "https://www.geoguessr.com/",
       "User-Agent": DEFAULT_USER_AGENT
     },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, remember: true })
   });
 
   const responseBody = await response.text();
@@ -66,6 +71,10 @@ async function signIn(): Promise<SignInResponse> {
 
   console.log("Sign-in response status:", response.status);
   console.log("Sign-in set-cookie:", setCookieValues ?? "(none)");
+  console.log(
+    "Sign-in response headers:",
+    JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)
+  );
   console.log("Sign-in response body:", responseBody.slice(0, 1000));
 
   if (!response.ok) {
