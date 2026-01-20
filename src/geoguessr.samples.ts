@@ -106,6 +106,23 @@ function resolveSampleTargetDate(
   return latestKey;
 }
 
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function jitterValue(
+  value: number,
+  minFactor: number,
+  maxFactor: number,
+  minValue: number,
+  maxValue: number,
+  round = false
+): number {
+  const factor = randomBetween(minFactor, maxFactor);
+  const jittered = Math.max(minValue, Math.min(maxValue, value * factor));
+  return round ? Math.round(jittered) : jittered;
+}
+
 export async function fetchDailyChallengeResultsFromSamples(
   options: SampleDataOptions = {}
 ): Promise<DailyChallengeResults> {
@@ -155,14 +172,38 @@ export async function fetchDailyChallengeResultsFromSamples(
   usersById.set(profile.userId, profile);
 
   const results: DailyFriendResult[] = [];
+  const maxScore = 25000;
+  const maxTimeSeconds = 15 * 60;
+  const maxDistanceMeters = Math.PI * 6371 * 1000 * 5;
+
   if (targetEntry) {
     for (const user of usersById.values()) {
       results.push({
         userId: user.userId,
         nick: user.nick,
-        totalScore: targetEntry.totalScore,
-        totalTime: targetEntry.totalTime,
-        totalDistance: targetEntry.totalDistance,
+        totalScore: jitterValue(
+          targetEntry.totalScore,
+          0.75,
+          1.05,
+          0,
+          maxScore,
+          true
+        ),
+        totalTime: jitterValue(
+          targetEntry.totalTime,
+          0.8,
+          1.3,
+          0,
+          maxTimeSeconds,
+          true
+        ),
+        totalDistance: jitterValue(
+          targetEntry.totalDistance,
+          0.7,
+          1.4,
+          0,
+          maxDistanceMeters
+        ),
         countryCode: user.countryCode ?? null,
         isVerified: user.isVerified,
         flair: user.flair
