@@ -56,7 +56,7 @@ async function writeLastToken(token: string): Promise<void> {
 
 async function run(): Promise<void> {
   const cookie = getAuthCookie();
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL?.trim();
 
   if (!webhookUrl) {
     throw new Error("Missing DISCORD_WEBHOOK_URL environment variable.");

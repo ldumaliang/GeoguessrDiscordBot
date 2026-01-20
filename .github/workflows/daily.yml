@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "5 15 * * *"
   workflow_dispatch: {}
+  pull_request: {}
 
 jobs:
   run-daily:
@@ -32,5 +33,5 @@ jobs:
       - name: Run daily job
         env:
           NCFA_TOKEN: ${{ secrets.NCFA_TOKEN }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ github.event_name == 'pull_request' && secrets.DISCORD_WEBHOOK_URL_PR || secrets.DISCORD_WEBHOOK_URL }}
         run: npm run start

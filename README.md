@@ -15,6 +15,7 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 - Node.js 20+
 - A GeoGuessr session cookie
 - A Discord webhook URL
+- (Optional) A Discord webhook URL for pull request runs (GitHub Actions secret)
 
 ## Setup
 
@@ -31,6 +32,8 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 1. In Discord, go to your server → **Edit Channel** → **Integrations**.
 2. Create a **Webhook**, select the target channel, and copy the URL.
 3. Store it in `DISCORD_WEBHOOK_URL`.
+4. (Optional) For GitHub pull request runs, store a private test webhook URL in
+   the `DISCORD_WEBHOOK_URL_PR` Actions secret so PRs post to a safe channel.
 
 ### 3) Local Run
 
@@ -38,6 +41,10 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 npm install
 GEOGUESSR_COOKIE="..." DISCORD_WEBHOOK_URL="..." npm run start
 ```
+
+For pull request CI runs, set the `DISCORD_WEBHOOK_URL_PR` GitHub Actions secret.
+The workflow uses it to route PR runs to the test webhook while still using
+`DISCORD_WEBHOOK_URL` for scheduled runs.
 
 ### Distance Assumption
 
