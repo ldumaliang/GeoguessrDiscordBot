@@ -1,5 +1,8 @@
 import type { DailyChallengeResults, DailyFriendResult } from "./geoguessr.js";
 
+const TOP_N_LIMIT = 25;
+const DISTANCE_THRESHOLD_METERS = 1000;
+
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
@@ -7,7 +10,7 @@ function formatTime(totalSeconds: number): string {
 }
 
 function formatDistance(value: number): string {
-  const km = value > 1000 ? value / 1000 : value;
+  const km = value > DISTANCE_THRESHOLD_METERS ? value / 1000 : value;
   return km.toFixed(1);
 }
 
@@ -22,7 +25,7 @@ function buildTable(entries: DailyFriendResult[]): string {
       name: friend.nick,
       score: Math.round(friend.totalScore).toString(),
       time: formatTime(friend.totalTime),
-      distance: formatDistance(friend.totalDistance)
+      distance: formatDistance(friend.totalDistance),
     };
   });
 
@@ -31,7 +34,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     name: "Name",
     score: "Score",
     time: "Time",
-    distance: "Dist(km)"
+    distance: "Dist(km)",
   };
 
   const widths = {
@@ -42,7 +45,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     distance: Math.max(
       headers.distance.length,
       ...rows.map((r) => r.distance.length)
-    )
+    ),
   };
 
   const headerLine = [
@@ -50,7 +53,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     pad(headers.name, widths.name),
     pad(headers.score, widths.score),
     pad(headers.time, widths.time),
-    pad(headers.distance, widths.distance)
+    pad(headers.distance, widths.distance),
   ].join(" | ");
 
   const separatorLine = [
@@ -58,7 +61,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     "-".repeat(widths.name),
     "-".repeat(widths.score),
     "-".repeat(widths.time),
-    "-".repeat(widths.distance)
+    "-".repeat(widths.distance),
   ].join("-+-");
 
   const dataLines = rows.map((row) => {
@@ -67,7 +70,7 @@ function buildTable(entries: DailyFriendResult[]): string {
       pad(row.name, widths.name),
       pad(row.score, widths.score),
       pad(row.time, widths.time),
-      pad(row.distance, widths.distance)
+      pad(row.distance, widths.distance),
     ].join(" | ");
   });
 
@@ -89,7 +92,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
     return a.totalTime - b.totalTime;
   });
 
-  const top = sorted.slice(0, 25);
+  const top = sorted.slice(0, TOP_N_LIMIT);
   const table = buildTable(top);
   const remaining = sorted.length - top.length;
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";

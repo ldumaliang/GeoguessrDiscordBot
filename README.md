@@ -13,19 +13,19 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 ## Prerequisites
 
 - Node.js 20+
-- A GeoGuessr session cookie
+- A GeoGuessr `_ncfa` token (session cookie)
 - A Discord webhook URL
 - (Optional) A Discord webhook URL for pull request runs (GitHub Actions secret)
 
 ## Setup
 
-### 1) Get `GEOGUESSR_COOKIE`
+### 1) Get `NCFA_TOKEN`
 
 1. Log into GeoGuessr in your browser.
 2. Open DevTools → **Application** (Chrome) or **Storage** (Firefox).
 3. Under **Cookies**, select `https://www.geoguessr.com`.
-4. Copy the full cookie string (e.g. `_ncfa=...; othercookie=...`).
-5. Store it in an environment variable named `GEOGUESSR_COOKIE`.
+4. Find the `_ncfa` cookie and copy its value.
+5. Store it in an environment variable named `NCFA_TOKEN`.
 
 ### 2) Create a Discord Webhook
 
@@ -39,16 +39,38 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 
 ```bash
 npm install
-GEOGUESSR_COOKIE="..." DISCORD_WEBHOOK_URL="..." npm run start
+NCFA_TOKEN="..." DISCORD_WEBHOOK_URL="..." npm run start
 ```
 
 For pull request CI runs, set the `DISCORD_WEBHOOK_URL_PR` GitHub Actions secret.
 The workflow uses it to route PR runs to the test webhook while still using
 `DISCORD_WEBHOOK_URL` for scheduled runs.
 
+### 4) Optional Environment Variables
+
+The following optional environment variables can be configured:
+
+- **`DAILY_CHALLENGE_CLOSE_HOUR_UTC`** (default: `0`): Hour (0-23) when the daily challenge closes in UTC
+- **`DAILY_CHALLENGE_CLOSE_MINUTE_UTC`** (default: `0`): Minute (0-59) when the daily challenge closes in UTC
+- **`SIMULATED_DATA_DIR`** (simulation only): Directory containing sample data for simulation mode
+- **`SIMULATED_TARGET_DATE`** (simulation only): Target date for simulation (YYYY-MM-DD format)
+
 ### Distance Assumption
 
 GeoGuessr `totalDistance` appears to be either kilometers or meters. This app assumes values > 1000 are meters and converts to kilometers, otherwise uses the value as-is.
+
+## Development Scripts
+
+```bash
+npm run start         # Run the production job
+npm run simulate      # Run in simulation mode
+npm run typecheck     # Type-check without emitting files
+npm run lint          # Lint TypeScript files
+npm run lint:fix      # Lint and auto-fix issues
+npm run format        # Format code with Prettier
+npm run format:check  # Check code formatting
+npm run clean         # Remove dist and cache directories
+```
 
 ## Project Structure
 
@@ -61,8 +83,13 @@ GeoGuessr `totalDistance` appears to be either kilometers or meters. This app as
 │   ├── discord.ts
 │   ├── format.ts
 │   ├── geoguessr.ts
-│   └── index.ts
+│   ├── index.ts
+│   ├── simulate.ts
+│   └── utils.ts
 ├── .env.example
+├── .nvmrc
+├── .prettierrc.json
+├── eslint.config.js
 ├── package.json
 └── tsconfig.json
 ```

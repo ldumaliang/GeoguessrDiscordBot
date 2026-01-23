@@ -1,4 +1,13 @@
 import { z } from "zod";
+import {
+  DEFAULT_USER_AGENT,
+  sleep,
+  MAX_RETRY_ATTEMPTS,
+  RETRY_BASE_DELAY_MS,
+  RETRY_BACKOFF_MULTIPLIER,
+  RETRYABLE_STATUS_CODES,
+  REQUEST_TIMEOUT_MS,
+} from "./utils.js";
 
 export const PROFILE_SCHEMA = z
   .object({
@@ -7,8 +16,8 @@ export const PROFILE_SCHEMA = z
       nick: z.string(),
       countryCode: z.string().nullable().optional(),
       isVerified: z.boolean().optional(),
-      pin: z.unknown().optional()
-    })
+      pin: z.unknown().optional(),
+    }),
   })
   .passthrough();
 
@@ -18,13 +27,13 @@ export const FRIEND_SCHEMA = z
     nick: z.string(),
     countryCode: z.string().nullable().optional(),
     isVerified: z.boolean().optional(),
-    flair: z.unknown().optional()
+    flair: z.unknown().optional(),
   })
   .passthrough();
 
 export const FRIENDS_RESPONSE_SCHEMA = z
   .object({
-    friends: z.array(FRIEND_SCHEMA)
+    friends: z.array(FRIEND_SCHEMA),
   })
   .passthrough();
 
@@ -34,13 +43,13 @@ export const DAILY_ENTRY_SCHEMA = z
     challengeToken: z.string(),
     totalScore: z.number(),
     totalTime: z.number(),
-    totalDistance: z.number()
+    totalDistance: z.number(),
   })
   .passthrough();
 
 export const USER_STATS_SCHEMA = z
   .object({
-    dailyChallengesRolling7Days: z.array(DAILY_ENTRY_SCHEMA).optional()
+    dailyChallengesRolling7Days: z.array(DAILY_ENTRY_SCHEMA).optional(),
   })
   .passthrough();
 
@@ -70,20 +79,44 @@ type CloseConfig = {
   closeMinuteUtc: number;
 };
 
-const DEFAULT_USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
+// GeoGuessr API endpoints
+const API_BASE_URL = "https://www.geoguessr.com/api/v3";
+const PROFILE_URL = `${API_BASE_URL}/profiles`;
+const FRIENDS_URL = `${API_BASE_URL}/social/friends/summary`;
+const getUserStatsUrl = (userId: string) =>
+  `${API_BASE_URL}/users/${userId}/stats`;
 
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   attempt = 1
 ): Promise<Response> {
-  const response = await fetch(url, options);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return await handleFetchResponse(response, url, options, attempt);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if ((error as Error).name === "AbortError") {
+      throw new Error(`Request timeout after ${REQUEST_TIMEOUT_MS}ms: ${url}`);
+    }
+    throw error;
+  }
+}
+
+async function handleFetchResponse(
+  response: Response,
+  url: string,
+  options: RequestInit,
+  attempt: number
+): Promise<Response> {
   if (response.ok) {
     return response;
   }
@@ -92,10 +125,14 @@ async function fetchWithRetry(
     return response;
   }
 
-  if ([429, 500, 502, 503, 504].includes(response.status) && attempt < 3) {
-    const delay = 500 * 2 ** (attempt - 1);
+  if (
+    RETRYABLE_STATUS_CODES.includes(response.status) &&
+    attempt < MAX_RETRY_ATTEMPTS
+  ) {
+    const delay =
+      RETRY_BASE_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** (attempt - 1);
     console.warn(
-      `GeoGuessr request failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/3).`
+      `GeoGuessr request failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS}).`
     );
     await sleep(delay);
     return fetchWithRetry(url, options, attempt + 1);
@@ -108,7 +145,7 @@ function buildAuthHeaders(cookie: string): HeadersInit {
   return {
     Accept: "application/json",
     Cookie: cookie,
-    "User-Agent": DEFAULT_USER_AGENT
+    "User-Agent": DEFAULT_USER_AGENT,
   };
 }
 
@@ -141,12 +178,9 @@ function getTargetChallengeDay(
 }
 
 async function fetchProfile(cookie: string): Promise<FriendSummary> {
-  const response = await fetchWithRetry(
-    "https://www.geoguessr.com/api/v3/profiles",
-    {
-      headers: buildAuthHeaders(cookie)
-    }
-  );
+  const response = await fetchWithRetry(PROFILE_URL, {
+    headers: buildAuthHeaders(cookie),
+  });
 
   if (!response.ok) {
     const body = await response.text();
@@ -164,23 +198,22 @@ async function fetchProfile(cookie: string): Promise<FriendSummary> {
   }
 
   const userProfile = parsed.data.user;
-  console.log(`Retrieved profile for user: ${userProfile.nick} (${userProfile.id})`);
-  
+  console.log(
+    `Retrieved profile for user: ${userProfile.nick} (${userProfile.id})`
+  );
+
   return {
     userId: userProfile.id,
     nick: userProfile.nick,
     countryCode: userProfile.countryCode,
-    isVerified: userProfile.isVerified
+    isVerified: userProfile.isVerified,
   };
 }
 
 async function fetchFriendsSummary(cookie: string): Promise<FriendSummary[]> {
-  const response = await fetchWithRetry(
-    "https://www.geoguessr.com/api/v3/social/friends/summary",
-    {
-      headers: buildAuthHeaders(cookie)
-    }
-  );
+  const response = await fetchWithRetry(FRIENDS_URL, {
+    headers: buildAuthHeaders(cookie),
+  });
 
   if (!response.ok) {
     const body = await response.text();
@@ -204,12 +237,9 @@ async function fetchUserStats(
   cookie: string,
   userId: string
 ): Promise<DailyChallengeEntry[]> {
-  const response = await fetchWithRetry(
-    `https://www.geoguessr.com/api/v3/users/${userId}/stats`,
-    {
-      headers: buildAuthHeaders(cookie)
-    }
-  );
+  const response = await fetchWithRetry(getUserStatsUrl(userId), {
+    headers: buildAuthHeaders(cookie),
+  });
 
   if (!response.ok) {
     const body = await response.text();
@@ -221,9 +251,7 @@ async function fetchUserStats(
   const data = await response.json();
   const parsed = USER_STATS_SCHEMA.safeParse(data);
   if (!parsed.success) {
-    throw new Error(
-      `GeoGuessr stats schema mismatch: ${parsed.error.message}`
-    );
+    throw new Error(`GeoGuessr stats schema mismatch: ${parsed.error.message}`);
   }
 
   return parsed.data.dailyChallengesRolling7Days ?? [];
@@ -243,7 +271,7 @@ export async function fetchDailyChallengeResults(
 
   const [profile, friends] = await Promise.all([
     fetchProfile(cookie),
-    fetchFriendsSummary(cookie)
+    fetchFriendsSummary(cookie),
   ]);
 
   const usersById = new Map<string, FriendSummary>();
@@ -252,45 +280,55 @@ export async function fetchDailyChallengeResults(
   }
   usersById.set(profile.userId, profile);
 
+  // Fetch all user stats in parallel for better performance
+  const userStatsPromises = Array.from(usersById.values()).map(
+    async (user) => ({
+      user,
+      stats: await fetchUserStats(cookie, user.userId),
+    })
+  );
+
+  const settledResults = await Promise.allSettled(userStatsPromises);
+
   const results: DailyFriendResult[] = [];
   let challengeToken: string | null = null;
 
-  for (const user of usersById.values()) {
-    try {
-      const entries = await fetchUserStats(cookie, user.userId);
-      const entry = entries.find(
-        (value) =>
-          getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) ===
-          targetDate
-      );
-
-      if (!entry) {
-        continue;
-      }
-
-      if (!challengeToken) {
-        challengeToken = entry.challengeToken;
-      }
-
-      results.push({
-        userId: user.userId,
-        nick: user.nick,
-        totalScore: entry.totalScore,
-        totalTime: entry.totalTime,
-        totalDistance: entry.totalDistance,
-        countryCode: user.countryCode ?? null,
-        isVerified: user.isVerified,
-        flair: user.flair
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`GeoGuessr stats request failed for ${user.userId}: ${message}`);
+  for (const settled of settledResults) {
+    if (settled.status === "rejected") {
+      console.warn(`GeoGuessr stats request failed: ${settled.reason}`);
+      continue;
     }
+
+    const { user, stats } = settled.value;
+    const entry = stats.find(
+      (value) =>
+        getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) ===
+        targetDate
+    );
+
+    if (!entry) {
+      continue;
+    }
+
+    if (!challengeToken) {
+      challengeToken = entry.challengeToken;
+    }
+
+    results.push({
+      userId: user.userId,
+      nick: user.nick,
+      totalScore: entry.totalScore,
+      totalTime: entry.totalTime,
+      totalDistance: entry.totalDistance,
+      countryCode: user.countryCode ?? null,
+      isVerified: user.isVerified,
+      flair: user.flair,
+    });
   }
 
   return {
     date: targetDate,
     challengeToken,
-    results
+    results,
   };
 }

@@ -2,32 +2,7 @@ import "dotenv/config";
 import { fetchDailyChallengeResultsFromSamples } from "./geoguessr.samples.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
-
-function parseIntEnv(
-  name: string,
-  fallback: number,
-  min: number,
-  max: number
-): number {
-  const raw = process.env[name];
-  if (!raw) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
-    throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
-    );
-  }
-
-  return parsed;
-}
-
-function getOptionalEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
-}
+import { parseIntEnv, getOptionalEnv } from "./utils.js";
 
 async function run(): Promise<void> {
   const closeHourUtc = parseIntEnv("DAILY_CHALLENGE_CLOSE_HOUR_UTC", 0, 0, 23);
@@ -42,7 +17,7 @@ async function run(): Promise<void> {
     sampleDir: getOptionalEnv("SIMULATED_DATA_DIR"),
     targetDate: getOptionalEnv("SIMULATED_TARGET_DATE"),
     closeHourUtc,
-    closeMinuteUtc
+    closeMinuteUtc,
   });
 
   const message = buildLeaderboardMessage(daily);
