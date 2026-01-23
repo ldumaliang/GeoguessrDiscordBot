@@ -2,6 +2,7 @@ import "dotenv/config";
 import { fetchDailyChallengeResultsFromSamples } from "./geoguessr.samples.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
+import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
 
 function parseIntEnv(
   name: string,
@@ -24,6 +25,43 @@ function parseIntEnv(
   return parsed;
 }
 
+function parseOptionalIntEnv(
+  name: string,
+  min: number,
+  max: number
+): number | undefined {
+  const raw = process.env[name];
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
+    throw new Error(
+      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
+    );
+  }
+
+  return parsed;
+}
+
+function parseBoolEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error(`Invalid ${name} value. Expected a boolean.`);
+}
+
 function getOptionalEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
@@ -43,6 +81,17 @@ async function run(): Promise<void> {
     targetDate: getOptionalEnv("SIMULATED_TARGET_DATE"),
     closeHourUtc,
     closeMinuteUtc
+  });
+
+  await enrichDailyChallengeResultsWithLocations(daily, {
+    enabled: parseBoolEnv("GEOCODE_LOCATIONS", true),
+    baseUrl: getOptionalEnv("NOMINATIM_BASE_URL"),
+    userAgent: getOptionalEnv("NOMINATIM_USER_AGENT"),
+    email: getOptionalEnv("NOMINATIM_EMAIL"),
+    language: getOptionalEnv("NOMINATIM_LANGUAGE"),
+    delayMs: parseOptionalIntEnv("NOMINATIM_DELAY_MS", 0, 10000),
+    cachePath: getOptionalEnv("NOMINATIM_CACHE_PATH"),
+    zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18)
   });
 
   const message = buildLeaderboardMessage(daily);
