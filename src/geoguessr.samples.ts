@@ -12,7 +12,7 @@ import {
   type DailyFriendResult,
   type DailyFriendRoundResult,
   type FriendSummary,
-  getChallengeDayKey
+  getChallengeDayKey,
 } from "./geoguessr.js";
 
 export type SampleDataOptions = {
@@ -45,7 +45,7 @@ function resolveSampleProfile(raw: unknown): FriendSummary {
     const parsed = PROFILE_SCHEMA.safeParse(raw);
     if (!parsed.success) {
       throw new Error(
-        `Sample profile schema mismatch: ${parsed.error.message}`
+        `Sample profile schema mismatch: ${parsed.error.message}`,
       );
     }
 
@@ -54,7 +54,7 @@ function resolveSampleProfile(raw: unknown): FriendSummary {
       userId: userProfile.id,
       nick: userProfile.nick,
       countryCode: userProfile.countryCode,
-      isVerified: userProfile.isVerified
+      isVerified: userProfile.isVerified,
     };
   }
 
@@ -69,7 +69,7 @@ function resolveSampleProfile(raw: unknown): FriendSummary {
 function getLatestChallengeDayKey(
   entries: DailyChallengeEntry[],
   closeHourUtc: number,
-  closeMinuteUtc: number
+  closeMinuteUtc: number,
 ): string | null {
   let latestKey: string | null = null;
   let latestTime = -Infinity;
@@ -93,13 +93,13 @@ function resolveSampleTargetDate(
   entries: DailyChallengeEntry[],
   closeHourUtc: number,
   closeMinuteUtc: number,
-  override?: string
+  override?: string,
 ): string {
   const trimmedOverride = override?.trim();
   if (trimmedOverride) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedOverride)) {
       throw new Error(
-        "Invalid SIMULATED_TARGET_DATE value. Expected YYYY-MM-DD."
+        "Invalid SIMULATED_TARGET_DATE value. Expected YYYY-MM-DD.",
       );
     }
     return trimmedOverride;
@@ -108,7 +108,7 @@ function resolveSampleTargetDate(
   const latestKey = getLatestChallengeDayKey(
     entries,
     closeHourUtc,
-    closeMinuteUtc
+    closeMinuteUtc,
   );
   if (!latestKey) {
     throw new Error("Sample data is missing daily challenge entries.");
@@ -127,7 +127,7 @@ function jitterValue(
   maxFactor: number,
   minValue: number,
   maxValue: number,
-  round = false
+  round = false,
 ): number {
   const factor = randomBetween(minFactor, maxFactor);
   const jittered = Math.max(minValue, Math.min(maxValue, value * factor));
@@ -135,7 +135,7 @@ function jitterValue(
 }
 
 export async function fetchDailyChallengeResultsFromSamples(
-  options: SampleDataOptions = {}
+  options: SampleDataOptions = {},
 ): Promise<DailyChallengeResults> {
   const sampleDir = options.sampleDir ?? "endpoint-samples";
   const closeHourUtc = options.closeHourUtc ?? 0;
@@ -145,13 +145,13 @@ export async function fetchDailyChallengeResultsFromSamples(
     loadJsonFile(join(sampleDir, "friends.json")),
     loadJsonFile(join(sampleDir, "profile.json")),
     loadJsonFile(join(sampleDir, "user.json")),
-    loadOptionalJsonFile(join(sampleDir, "results.json"))
+    loadOptionalJsonFile(join(sampleDir, "results.json")),
   ]);
 
   const friendsParsed = FRIENDS_RESPONSE_SCHEMA.safeParse(friendsRaw);
   if (!friendsParsed.success) {
     throw new Error(
-      `Sample friends schema mismatch: ${friendsParsed.error.message}`
+      `Sample friends schema mismatch: ${friendsParsed.error.message}`,
     );
   }
 
@@ -160,7 +160,7 @@ export async function fetchDailyChallengeResultsFromSamples(
   const userParsed = USER_STATS_SCHEMA.safeParse(userRaw);
   if (!userParsed.success) {
     throw new Error(
-      `Sample user stats schema mismatch: ${userParsed.error.message}`
+      `Sample user stats schema mismatch: ${userParsed.error.message}`,
     );
   }
 
@@ -169,12 +169,13 @@ export async function fetchDailyChallengeResultsFromSamples(
     entries,
     closeHourUtc,
     closeMinuteUtc,
-    options.targetDate
+    options.targetDate,
   );
 
   const targetEntry = entries.find(
     (value) =>
-      getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) === targetDate
+      getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) ===
+      targetDate,
   );
 
   const usersById = new Map<string, FriendSummary>();
@@ -195,7 +196,7 @@ export async function fetchDailyChallengeResultsFromSamples(
     const resultsParsed = RESULTS_RESPONSE_SCHEMA.safeParse(resultsRaw);
     if (!resultsParsed.success) {
       throw new Error(
-        `Sample results schema mismatch: ${resultsParsed.error.message}`
+        `Sample results schema mismatch: ${resultsParsed.error.message}`,
       );
     }
 
@@ -204,7 +205,7 @@ export async function fetchDailyChallengeResultsFromSamples(
         roundLocations = item.game.rounds.map((round, index) => ({
           round: index + 1,
           lat: round.lat,
-          lng: round.lng
+          lng: round.lng,
         }));
       }
 
@@ -223,7 +224,7 @@ export async function fetchDailyChallengeResultsFromSamples(
           steps: guess.stepsCount,
           score,
           guessLat: guess.lat,
-          guessLng: guess.lng
+          guessLng: guess.lng,
         };
       });
 
@@ -246,7 +247,7 @@ export async function fetchDailyChallengeResultsFromSamples(
           1.05,
           0,
           maxScore,
-          true
+          true,
         ),
         totalTime: jitterValue(
           targetEntry.totalTime,
@@ -254,19 +255,19 @@ export async function fetchDailyChallengeResultsFromSamples(
           1.3,
           0,
           maxTimeSeconds,
-          true
+          true,
         ),
         totalDistance: jitterValue(
           targetEntry.totalDistance,
           0.7,
           1.4,
           0,
-          maxDistanceMeters
+          maxDistanceMeters,
         ),
         roundResults,
         countryCode: user.countryCode ?? null,
         isVerified: user.isVerified,
-        flair: user.flair
+        flair: user.flair,
       });
     }
   }
@@ -275,6 +276,6 @@ export async function fetchDailyChallengeResultsFromSamples(
     date: targetDate,
     challengeToken: targetEntry?.challengeToken ?? null,
     results,
-    roundLocations
+    roundLocations,
   };
 }

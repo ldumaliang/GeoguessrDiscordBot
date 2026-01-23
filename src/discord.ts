@@ -8,15 +8,15 @@ async function sleep(ms: number): Promise<void> {
 async function postWithRetry(
   url: string,
   payload: unknown,
-  attempt = 1
+  attempt = 1,
 ): Promise<Response> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "User-Agent": DEFAULT_USER_AGENT
+      "User-Agent": DEFAULT_USER_AGENT,
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 
   if (response.ok) {
@@ -26,7 +26,7 @@ async function postWithRetry(
   if ([429, 500, 502, 503, 504].includes(response.status) && attempt < 3) {
     const delay = 500 * 2 ** (attempt - 1);
     console.warn(
-      `Discord webhook failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/3).`
+      `Discord webhook failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/3).`,
     );
     await sleep(delay);
     return postWithRetry(url, payload, attempt + 1);
@@ -37,14 +37,14 @@ async function postWithRetry(
 
 export async function postDiscordMessage(
   webhookUrl: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const response = await postWithRetry(webhookUrl, { content });
 
   if (!response.ok) {
     const body = await response.text();
     throw new Error(
-      `Discord webhook failed (${response.status}): ${body.slice(0, 200)}`
+      `Discord webhook failed (${response.status}): ${body.slice(0, 200)}`,
     );
   }
 }

@@ -2,7 +2,7 @@ import type {
   DailyChallengeResults,
   DailyFriendResult,
   DailyFriendRoundResult,
-  DailyChallengeRoundLocation
+  DailyChallengeRoundLocation,
 } from "./geoguessr.js";
 
 function formatTime(totalSeconds: number): string {
@@ -27,7 +27,7 @@ function buildTable(entries: DailyFriendResult[]): string {
       name: friend.nick,
       score: Math.round(friend.totalScore).toString(),
       time: formatTime(friend.totalTime),
-      distance: formatDistance(friend.totalDistance)
+      distance: formatDistance(friend.totalDistance),
     };
   });
 
@@ -36,7 +36,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     name: "Name",
     score: "Score",
     time: "Time",
-    distance: "Dist(km)"
+    distance: "Dist(km)",
   };
 
   const widths = {
@@ -46,8 +46,8 @@ function buildTable(entries: DailyFriendResult[]): string {
     time: Math.max(headers.time.length, ...rows.map((r) => r.time.length)),
     distance: Math.max(
       headers.distance.length,
-      ...rows.map((r) => r.distance.length)
-    )
+      ...rows.map((r) => r.distance.length),
+    ),
   };
 
   const headerLine = [
@@ -55,7 +55,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     pad(headers.name, widths.name),
     pad(headers.score, widths.score),
     pad(headers.time, widths.time),
-    pad(headers.distance, widths.distance)
+    pad(headers.distance, widths.distance),
   ].join(" | ");
 
   const separatorLine = [
@@ -63,7 +63,7 @@ function buildTable(entries: DailyFriendResult[]): string {
     "-".repeat(widths.name),
     "-".repeat(widths.score),
     "-".repeat(widths.time),
-    "-".repeat(widths.distance)
+    "-".repeat(widths.distance),
   ].join("-+-");
 
   const dataLines = rows.map((row) => {
@@ -72,7 +72,7 @@ function buildTable(entries: DailyFriendResult[]): string {
       pad(row.name, widths.name),
       pad(row.score, widths.score),
       pad(row.time, widths.time),
-      pad(row.distance, widths.distance)
+      pad(row.distance, widths.distance),
     ].join(" | ");
   });
 
@@ -80,17 +80,16 @@ function buildTable(entries: DailyFriendResult[]): string {
 }
 
 function formatRoundLocations(
-  locations: DailyChallengeRoundLocation[] | undefined
+  locations: DailyChallengeRoundLocation[] | undefined,
 ): string | null {
   if (!locations || locations.length === 0) {
     return null;
   }
 
-  const lines = locations.map(
-    (round) =>
-      round.locationName
-        ? `R${round.round}: ${round.locationName} (${round.lat.toFixed(6)}, ${round.lng.toFixed(6)})`
-        : `R${round.round}: ${round.lat.toFixed(6)}, ${round.lng.toFixed(6)}`
+  const lines = locations.map((round) =>
+    round.locationName
+      ? `R${round.round}: ${round.locationName} (${round.lat.toFixed(6)}, ${round.lng.toFixed(6)})`
+      : `R${round.round}: ${round.lat.toFixed(6)}, ${round.lng.toFixed(6)}`,
   );
 
   return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
@@ -104,7 +103,7 @@ function formatRoundResults(
     steps: number;
     score: number;
     guess: number;
-  }
+  },
 ): string[] {
   return roundResults.map((round) => {
     const guess = round.guessedCountry
@@ -122,40 +121,39 @@ function formatRoundResults(
 
 function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
   const lines: string[] = [];
-  const allRoundResults = entries.flatMap(
-    (entry) => entry.roundResults ?? []
-  );
+  const allRoundResults = entries.flatMap((entry) => entry.roundResults ?? []);
   const widths = {
     round: Math.max(
       "R10".length,
       ...allRoundResults.map((round) => `R${round.round}`.length),
-      2
+      2,
     ),
     time: Math.max(
       "00:00".length,
       ...allRoundResults.map((round) => formatTime(round.time).length),
-      5
+      5,
     ),
     steps: Math.max(
       "steps 0".length,
       ...allRoundResults.map((round) => `steps ${round.steps}`.length),
-      7
+      7,
     ),
     score: Math.max(
       "score 0".length,
       ...allRoundResults.map((round) => `score ${round.score}`.length),
-      7
+      7,
     ),
     guess: Math.max(
       "guess unknown".length,
-      ...allRoundResults.map((round) =>
-        (round.guessedCountry
-          ? `guess ${round.guessedCountry}`
-          : "guess unknown"
-        ).length
+      ...allRoundResults.map(
+        (round) =>
+          (round.guessedCountry
+            ? `guess ${round.guessedCountry}`
+            : "guess unknown"
+          ).length,
       ),
-      12
-    )
+      12,
+    ),
   };
 
   for (const friend of entries) {
@@ -167,8 +165,8 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     lines.push(friend.nick);
     lines.push(
       ...formatRoundResults(friend.roundResults, widths).map(
-        (line) => `  ${line}`
-      )
+        (line) => `  ${line}`,
+      ),
     );
     lines.push("");
   }
@@ -205,7 +203,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";
 
   const sections = [
-    `**${title}**\n${participantLine}\n\n\`\`\`\n${table}\n\`\`\`${suffix}`
+    `**${title}**\n${participantLine}\n\n\`\`\`\n${table}\n\`\`\`${suffix}`,
   ];
 
   const roundLocations = formatRoundLocations(daily.roundLocations);
@@ -223,7 +221,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
     sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
   } else {
     sections.push(
-      "**Player Round Breakdowns**\nPlayer round breakdowns: unavailable."
+      "**Player Round Breakdowns**\nPlayer round breakdowns: unavailable.",
     );
   }
 
