@@ -2,7 +2,7 @@ name: Daily GeoGuessr Friends
 
 on:
   schedule:
-    - cron: "5 15 * * *"
+    - cron: "55 23 * * *"
   workflow_dispatch: {}
   pull_request: {}
 
