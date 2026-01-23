@@ -6,7 +6,13 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "simulate": "tsx src/simulate.ts",
-    "lint": "tsc --noEmit"
+    "scoring-examples": "tsx src/scoring.examples.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "clean": "rm -rf dist .cache"
   },
   "engines": {
     "node": ">=20"

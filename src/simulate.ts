@@ -8,7 +8,7 @@ function parseIntEnv(
   name: string,
   fallback: number,
   min: number,
-  max: number
+  max: number,
 ): number {
   const raw = process.env[name];
   if (!raw) {
@@ -18,7 +18,7 @@ function parseIntEnv(
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed) || parsed < min || parsed > max) {
     throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
+      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`,
     );
   }
 
@@ -28,7 +28,7 @@ function parseIntEnv(
 function parseOptionalIntEnv(
   name: string,
   min: number,
-  max: number
+  max: number,
 ): number | undefined {
   const raw = process.env[name];
   if (!raw) {
@@ -38,7 +38,7 @@ function parseOptionalIntEnv(
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed) || parsed < min || parsed > max) {
     throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
+      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`,
     );
   }
 
@@ -73,14 +73,14 @@ async function run(): Promise<void> {
     "DAILY_CHALLENGE_CLOSE_MINUTE_UTC",
     0,
     0,
-    59
+    59,
   );
 
   const daily = await fetchDailyChallengeResultsFromSamples({
     sampleDir: getOptionalEnv("SIMULATED_DATA_DIR"),
     targetDate: getOptionalEnv("SIMULATED_TARGET_DATE"),
     closeHourUtc,
-    closeMinuteUtc
+    closeMinuteUtc,
   });
 
   await enrichDailyChallengeResultsWithLocations(daily, {
@@ -91,7 +91,7 @@ async function run(): Promise<void> {
     language: getOptionalEnv("NOMINATIM_LANGUAGE"),
     delayMs: parseOptionalIntEnv("NOMINATIM_DELAY_MS", 0, 10000),
     cachePath: getOptionalEnv("NOMINATIM_CACHE_PATH"),
-    zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18)
+    zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18),
   });
 
   const message = buildLeaderboardMessage(daily);

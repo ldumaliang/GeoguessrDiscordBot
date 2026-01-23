@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import type {
   DailyChallengeResults,
   DailyChallengeRoundLocation,
-  DailyFriendRoundResult
+  DailyFriendRoundResult,
 } from "./geoguessr.js";
 
 type NominatimAddress = {
@@ -99,7 +99,7 @@ async function loadCache(path: string): Promise<Map<string, string | null>> {
 
 async function saveCache(
   path: string,
-  cache: Map<string, string | null>
+  cache: Map<string, string | null>,
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const payload: Record<string, string | null> = {};
@@ -112,7 +112,7 @@ async function saveCache(
 async function fetchNominatimLocation(
   location: DailyChallengeRoundLocation,
   options: Required<Pick<GeocodeOptions, "baseUrl" | "userAgent">> &
-    Pick<GeocodeOptions, "email" | "language" | "zoom">
+    Pick<GeocodeOptions, "email" | "language" | "zoom">,
 ): Promise<string | null> {
   const url = new URL(options.baseUrl);
   url.searchParams.set("format", "jsonv2");
@@ -130,7 +130,7 @@ async function fetchNominatimLocation(
 
   const headers: HeadersInit = {
     "User-Agent": options.userAgent,
-    Accept: "application/json"
+    Accept: "application/json",
   };
 
   if (options.language) {
@@ -150,7 +150,7 @@ async function fetchNominatimCountry(
   lat: number,
   lng: number,
   options: Required<Pick<GeocodeOptions, "baseUrl" | "userAgent">> &
-    Pick<GeocodeOptions, "email" | "language">
+    Pick<GeocodeOptions, "email" | "language">,
 ): Promise<string | null> {
   const url = new URL(options.baseUrl);
   url.searchParams.set("format", "jsonv2");
@@ -165,7 +165,7 @@ async function fetchNominatimCountry(
 
   const headers: HeadersInit = {
     "User-Agent": options.userAgent,
-    Accept: "application/json"
+    Accept: "application/json",
   };
 
   if (options.language) {
@@ -190,14 +190,18 @@ async function enrichGuessCountries(
     email?: string;
     language?: string;
     delayMs: number;
-  }
+  },
 ): Promise<void> {
   if (!rounds || rounds.length === 0) {
     return;
   }
 
   for (const round of rounds) {
-    if (round.guessedCountry || round.guessLat == null || round.guessLng == null) {
+    if (
+      round.guessedCountry ||
+      round.guessLat == null ||
+      round.guessLng == null
+    ) {
       continue;
     }
 
@@ -210,12 +214,16 @@ async function enrichGuessCountries(
       continue;
     }
 
-    const country = await fetchNominatimCountry(round.guessLat, round.guessLng, {
-      baseUrl: options.baseUrl,
-      userAgent: options.userAgent,
-      email: options.email,
-      language: options.language
-    });
+    const country = await fetchNominatimCountry(
+      round.guessLat,
+      round.guessLng,
+      {
+        baseUrl: options.baseUrl,
+        userAgent: options.userAgent,
+        email: options.email,
+        language: options.language,
+      },
+    );
 
     if (country) {
       round.guessedCountry = country;
@@ -228,7 +236,7 @@ async function enrichGuessCountries(
 
 export async function enrichDailyChallengeResultsWithLocations(
   daily: DailyChallengeResults,
-  options: GeocodeOptions = {}
+  options: GeocodeOptions = {},
 ): Promise<void> {
   if (!daily.roundLocations || daily.roundLocations.length === 0) {
     return;
@@ -265,7 +273,7 @@ export async function enrichDailyChallengeResultsWithLocations(
       userAgent: resolvedUserAgent,
       email: options.email,
       language: options.language,
-      zoom: resolvedZoom
+      zoom: resolvedZoom,
     });
 
     if (label) {
@@ -282,7 +290,7 @@ export async function enrichDailyChallengeResultsWithLocations(
       userAgent: resolvedUserAgent,
       email: options.email,
       language: options.language,
-      delayMs: resolvedDelayMs
+      delayMs: resolvedDelayMs,
     });
   }
 
