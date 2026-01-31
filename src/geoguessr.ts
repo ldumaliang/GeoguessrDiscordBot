@@ -38,6 +38,53 @@ export const DAILY_ENTRY_SCHEMA = z
   })
   .passthrough();
 
+const RESULT_ROUND_SCHEMA = z
+  .object({
+    lat: z.number(),
+    lng: z.number()
+  })
+  .passthrough();
+
+const RESULT_GUESS_SCHEMA = z
+  .object({
+    time: z.number(),
+    stepsCount: z.number(),
+    roundScoreInPoints: z.number().optional(),
+    roundScore: z
+      .object({
+        amount: z.string()
+      })
+      .optional()
+  })
+  .passthrough();
+
+const RESULT_PLAYER_SCHEMA = z
+  .object({
+    id: z.string(),
+    nick: z.string(),
+    guesses: z.array(RESULT_GUESS_SCHEMA)
+  })
+  .passthrough();
+
+const RESULT_GAME_SCHEMA = z
+  .object({
+    rounds: z.array(RESULT_ROUND_SCHEMA),
+    player: RESULT_PLAYER_SCHEMA
+  })
+  .passthrough();
+
+export const RESULTS_RESPONSE_SCHEMA = z
+  .object({
+    items: z.array(
+      z
+        .object({
+          game: RESULT_GAME_SCHEMA
+        })
+        .passthrough()
+    )
+  })
+  .passthrough();
+
 export const USER_STATS_SCHEMA = z
   .object({
     dailyChallengesRolling7Days: z.array(DAILY_ENTRY_SCHEMA).optional()
@@ -48,12 +95,30 @@ export type FriendSummary = z.infer<typeof FRIEND_SCHEMA>;
 export type ProfileResponse = z.infer<typeof PROFILE_SCHEMA>;
 export type DailyChallengeEntry = z.infer<typeof DAILY_ENTRY_SCHEMA>;
 
+export type DailyFriendRoundResult = {
+  round: number;
+  time: number;
+  steps: number;
+  score: number;
+  guessLat?: number;
+  guessLng?: number;
+  guessedCountry?: string;
+};
+
+export type DailyChallengeRoundLocation = {
+  round: number;
+  lat: number;
+  lng: number;
+  locationName?: string;
+};
+
 export type DailyFriendResult = {
   userId: string;
   nick: string;
   totalScore: number;
   totalTime: number;
   totalDistance: number;
+  roundResults?: DailyFriendRoundResult[];
   countryCode?: string | null;
   isVerified?: boolean;
   flair?: unknown;
@@ -63,6 +128,7 @@ export type DailyChallengeResults = {
   date: string;
   challengeToken: string | null;
   results: DailyFriendResult[];
+  roundLocations?: DailyChallengeRoundLocation[];
 };
 
 type CloseConfig = {
@@ -229,6 +295,87 @@ async function fetchUserStats(
   return parsed.data.dailyChallengesRolling7Days ?? [];
 }
 
+function extractRoundScore(guess: z.infer<typeof RESULT_GUESS_SCHEMA>): number {
+  if (typeof guess.roundScoreInPoints === "number") {
+    return guess.roundScoreInPoints;
+  }
+
+  const amount = guess.roundScore?.amount;
+  if (amount) {
+    const parsed = Number.parseInt(amount, 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+async function fetchDetailedResults(
+  cookie: string,
+  challengeToken: string
+): Promise<{
+  roundLocations: DailyChallengeRoundLocation[];
+  playerRoundsById: Map<string, DailyFriendRoundResult[]>;
+  playerRoundsByNick: Map<string, DailyFriendRoundResult[]>;
+} | null> {
+  const response = await fetchWithRetry(
+    `https://www.geoguessr.com/api/v3/results/highscores/${challengeToken}?friends=true`,
+    {
+      headers: buildAuthHeaders(cookie)
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    console.warn(
+      `GeoGuessr detailed results request failed (${response.status}): ${body.slice(0, 200)}`
+    );
+    return null;
+  }
+
+  const data = await response.json();
+  const parsed = RESULTS_RESPONSE_SCHEMA.safeParse(data);
+  if (!parsed.success) {
+    console.warn(
+      `GeoGuessr detailed results schema mismatch: ${parsed.error.message}`
+    );
+    return null;
+  }
+
+  const playerRoundsById = new Map<string, DailyFriendRoundResult[]>();
+  const playerRoundsByNick = new Map<string, DailyFriendRoundResult[]>();
+  let roundLocations: DailyChallengeRoundLocation[] = [];
+
+  for (const item of parsed.data.items) {
+    const game = item.game;
+    if (roundLocations.length === 0 && game.rounds.length > 0) {
+      roundLocations = game.rounds.map((round, index) => ({
+        round: index + 1,
+        lat: round.lat,
+        lng: round.lng
+      }));
+    }
+
+    const guesses = game.player.guesses.map((guess, index) => ({
+      round: index + 1,
+      time: guess.time,
+      steps: guess.stepsCount,
+      score: extractRoundScore(guess),
+      guessLat: guess.lat,
+      guessLng: guess.lng
+    }));
+    playerRoundsById.set(game.player.id, guesses);
+    playerRoundsByNick.set(game.player.nick.toLowerCase(), guesses);
+  }
+
+  return {
+    roundLocations,
+    playerRoundsById,
+    playerRoundsByNick
+  };
+}
+
 export async function fetchDailyChallengeResults(
   cookie: string,
   closeConfig?: Partial<CloseConfig>
@@ -288,9 +435,26 @@ export async function fetchDailyChallengeResults(
     }
   }
 
+  let roundLocations: DailyChallengeRoundLocation[] | undefined;
+  if (challengeToken) {
+    const detailed = await fetchDetailedResults(cookie, challengeToken);
+    if (detailed) {
+      roundLocations = detailed.roundLocations;
+      for (const result of results) {
+        const roundResults =
+          detailed.playerRoundsById.get(result.userId) ??
+          detailed.playerRoundsByNick.get(result.nick.toLowerCase());
+        if (roundResults) {
+          result.roundResults = roundResults;
+        }
+      }
+    }
+  }
+
   return {
     date: targetDate,
     challengeToken,
-    results
+    results,
+    roundLocations
   };
 }
