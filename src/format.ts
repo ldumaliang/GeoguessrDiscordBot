@@ -16,10 +16,6 @@ function formatDistance(value: number): string {
   return km.toFixed(1);
 }
 
-function pad(value: string, length: number): string {
-  return value.length >= length ? value : value.padEnd(length, " ");
-}
-
 function buildLeaderboardSummary(entries: DailyFriendResult[]): string {
   const lines = entries.map((friend, index) => {
     const score = Math.round(friend.totalScore).toString();
@@ -29,18 +25,6 @@ function buildLeaderboardSummary(entries: DailyFriendResult[]): string {
   return lines.join("\n");
 }
 
-function buildLeaderboardDetails(entries: DailyFriendResult[]): string {
-  const lines = entries.map((friend) => {
-    const score = Math.round(friend.totalScore).toString();
-    const time = formatTime(friend.totalTime);
-    const distance = formatDistance(friend.totalDistance);
-
-    return `**${friend.nick}** — ${score} pts\n||Time ${time} • Dist ${distance} km||`;
-  });
-
-  return lines.join("\n\n");
-}
-
 function formatRoundLocations(
   locations: DailyChallengeRoundLocation[] | undefined
 ): string | null {
@@ -48,90 +32,48 @@ function formatRoundLocations(
     return null;
   }
 
-  const lines = locations.map(
-    (round) =>
-      round.locationName
-        ? `R${round.round}: ${round.locationName} (${round.lat.toFixed(6)}, ${round.lng.toFixed(6)})`
-        : `R${round.round}: ${round.lat.toFixed(6)}, ${round.lng.toFixed(6)}`
-  );
+  const lines = locations.map((round) => {
+    const coords = `${round.lat.toFixed(4)}, ${round.lng.toFixed(4)}`;
+    if (round.locationName) {
+      return `- R${round.round}: ${round.locationName}\n  (${coords})`;
+    }
 
-  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+    return `- R${round.round}: (${coords})`;
+  });
+
+  return lines.join("\n");
 }
 
 function formatRoundResults(
-  roundResults: DailyFriendRoundResult[],
-  widths: {
-    round: number;
-    time: number;
-    steps: number;
-    score: number;
-    guess: number;
-  }
+  roundResults: DailyFriendRoundResult[]
 ): string[] {
   return roundResults.map((round) => {
     const guess = round.guessedCountry
       ? `guess ${round.guessedCountry}`
       : "guess unknown";
-    const roundLabel = pad(`R${round.round}`, widths.round);
-    const timeLabel = pad(formatTime(round.time), widths.time);
-    const stepsLabel = pad(`steps ${round.steps}`, widths.steps);
-    const scoreLabel = pad(`score ${round.score}`, widths.score);
-    const guessLabel = pad(guess, widths.guess);
 
-    return `${roundLabel} ${timeLabel} | ${stepsLabel} | ${scoreLabel} | ${guessLabel}`;
+    return `- R${round.round}: ${formatTime(round.time)} • steps ${round.steps} • score ${round.score} • ${guess}`;
   });
 }
 
 function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
   const lines: string[] = [];
-  const allRoundResults = entries.flatMap(
-    (entry) => entry.roundResults ?? []
-  );
-  const widths = {
-    round: Math.max(
-      "R10".length,
-      ...allRoundResults.map((round) => `R${round.round}`.length),
-      2
-    ),
-    time: Math.max(
-      "00:00".length,
-      ...allRoundResults.map((round) => formatTime(round.time).length),
-      5
-    ),
-    steps: Math.max(
-      "steps 0".length,
-      ...allRoundResults.map((round) => `steps ${round.steps}`.length),
-      7
-    ),
-    score: Math.max(
-      "score 0".length,
-      ...allRoundResults.map((round) => `score ${round.score}`.length),
-      7
-    ),
-    guess: Math.max(
-      "guess unknown".length,
-      ...allRoundResults.map((round) =>
-        (round.guessedCountry
-          ? `guess ${round.guessedCountry}`
-          : "guess unknown"
-        ).length
-      ),
-      12
-    )
-  };
-
   for (const friend of entries) {
+    const totalScore = Math.round(friend.totalScore).toString();
+    const totalTime = formatTime(friend.totalTime);
+    const totalDistance = formatDistance(friend.totalDistance);
+
     if (!friend.roundResults || friend.roundResults.length === 0) {
-      lines.push(`${friend.nick}: no round data`);
+      lines.push(`**${friend.nick}**`);
+      lines.push("_No round data._");
+      lines.push(`Total: ${totalScore} pts • ${totalTime} • ${totalDistance} km`);
+      lines.push("");
       continue;
     }
 
-    lines.push(friend.nick);
-    lines.push(
-      ...formatRoundResults(friend.roundResults, widths).map(
-        (line) => `  ${line}`
-      )
-    );
+    lines.push(`**${friend.nick}**`);
+    lines.push(...formatRoundResults(friend.roundResults));
+    lines.push(`Total: ${totalScore} pts • ${totalTime} • ${totalDistance} km`);
     lines.push("");
   }
 
@@ -143,7 +85,7 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     return null;
   }
 
-  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+  return lines.join("\n");
 }
 
 export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
@@ -163,13 +105,11 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
 
   const top = sorted.slice(0, 25);
   const summary = buildLeaderboardSummary(top);
-  const details = buildLeaderboardDetails(top);
   const remaining = sorted.length - top.length;
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";
 
   const sections = [
-    `**${title}**\n${participantLine}\n\n**Leaderboard**\n${summary}${suffix}`,
-    `**Leaderboard Details (tap to reveal)**\n${details}`
+    `**${title}**\n${participantLine}\n\n**Leaderboard**\n${summary}${suffix}`
   ];
 
   const roundLocations = formatRoundLocations(daily.roundLocations);
