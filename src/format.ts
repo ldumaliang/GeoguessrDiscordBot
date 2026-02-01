@@ -17,9 +17,11 @@ function formatDistance(value: number): string {
 }
 
 function buildLeaderboardSummary(entries: DailyFriendResult[]): string {
+  const medals = ["🥇", "🥈", "🥉"];
   const lines = entries.map((friend, index) => {
     const score = Math.round(friend.totalScore).toString();
-    return `${index + 1}. ${friend.nick} — ${score} pts`;
+    const medal = medals[index] ? `${medals[index]} ` : "";
+    return `${index + 1}. ${medal}${friend.nick} — ${score} pts`;
   });
 
   return lines.join("\n");
@@ -33,12 +35,11 @@ function formatRoundLocations(
   }
 
   const lines = locations.map((round) => {
-    const coords = `${round.lat.toFixed(4)}, ${round.lng.toFixed(4)}`;
     if (round.locationName) {
-      return `- R${round.round}: ${round.locationName}\n  (${coords})`;
+      return `- R${round.round}: ${round.locationName}`;
     }
 
-    return `- R${round.round}: (${coords})`;
+    return `- R${round.round}: Unknown location`;
   });
 
   return lines.join("\n");
@@ -48,11 +49,9 @@ function formatRoundResults(
   roundResults: DailyFriendRoundResult[]
 ): string[] {
   return roundResults.map((round) => {
-    const guess = round.guessedCountry
-      ? `guess ${round.guessedCountry}`
-      : "guess unknown";
+    const guess = round.guessedCountry ?? "Unknown";
 
-    return `- R${round.round}: ${formatTime(round.time)} • steps ${round.steps} • score ${round.score} • ${guess}`;
+    return `${round.round} | ${round.steps} | ${round.score} | ${guess}`;
   });
 }
 
@@ -62,18 +61,27 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     const totalScore = Math.round(friend.totalScore).toString();
     const totalTime = formatTime(friend.totalTime);
     const totalDistance = formatDistance(friend.totalDistance);
+    const totalSteps = friend.roundResults?.reduce((sum, round) => {
+      return sum + round.steps;
+    }, 0) ?? 0;
 
     if (!friend.roundResults || friend.roundResults.length === 0) {
-      lines.push(`**${friend.nick}**`);
-      lines.push("_No round data._");
-      lines.push(`Total: ${totalScore} pts • ${totalTime} • ${totalDistance} km`);
+      lines.push(friend.nick);
+      lines.push("No round data.");
+      lines.push(
+        `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`
+      );
       lines.push("");
       continue;
     }
 
-    lines.push(`**${friend.nick}**`);
+    lines.push(friend.nick);
+    lines.push("Round | Steps | Score | Guess");
+    lines.push("----- | ----- | ----- | -----");
     lines.push(...formatRoundResults(friend.roundResults));
-    lines.push(`Total: ${totalScore} pts • ${totalTime} • ${totalDistance} km`);
+    lines.push(
+      `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`
+    );
     lines.push("");
   }
 
@@ -86,6 +94,10 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
   }
 
   return lines.join("\n");
+}
+
+function wrapCodeBlock(content: string): string {
+  return `\`\`\`\n${content}\n\`\`\``;
 }
 
 export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
@@ -108,26 +120,28 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const remaining = sorted.length - top.length;
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";
 
-  const sections = [
-    `**${title}**\n${participantLine}\n\n**Leaderboard**\n${summary}${suffix}`
-  ];
+  const sections = [`**${title}**\n${participantLine}`];
+  sections.push(`**Leaderboard**\n${wrapCodeBlock(`${summary}${suffix}`)}`);
 
   const roundLocations = formatRoundLocations(daily.roundLocations);
   if (roundLocations) {
-    sections.push(`**Round Locations**\n${roundLocations}`);
-    if (daily.roundLocations?.some((round) => round.locationName)) {
-      sections.push("_Location data © OpenStreetMap contributors._");
-    }
+    sections.push(`**Round Locations**\n${wrapCodeBlock(roundLocations)}`);
   } else {
-    sections.push("**Round Locations**\nRound locations: unavailable.");
+    sections.push(
+      `**Round Locations**\n${wrapCodeBlock("Round locations: unavailable.")}`
+    );
   }
 
   const playerBreakdowns = formatPlayerBreakdowns(sorted);
   if (playerBreakdowns) {
-    sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
+    sections.push(
+      `**Player Round Breakdowns**\n${wrapCodeBlock(playerBreakdowns)}`
+    );
   } else {
     sections.push(
-      "**Player Round Breakdowns**\nPlayer round breakdowns: unavailable."
+      `**Player Round Breakdowns**\n${wrapCodeBlock(
+        "Player round breakdowns: unavailable."
+      )}`
     );
   }
 
