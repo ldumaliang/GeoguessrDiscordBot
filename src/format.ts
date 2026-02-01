@@ -86,7 +86,7 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
       return sum + round.steps;
     }, 0) ?? 0;
     const totalsLine =
-      `Total: ${totalScore}pts | ${totalSteps}st | ${totalTime} | ${totalDistance}km`;
+      `Total: ${totalScore}pts | ${totalSteps}steps | ${totalTime} | ${totalDistance}km`;
 
     if (!friend.roundResults || friend.roundResults.length === 0) {
       const block = ["No round data.", totalsLine].join("\n");
@@ -146,7 +146,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
 
   const playerBreakdowns = formatPlayerBreakdowns(sorted);
   if (playerBreakdowns) {
-    sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
+    sections.push(`**Player Round Breakdowns**\n\n${playerBreakdowns}`);
   } else {
     sections.push(
       `**Player Round Breakdowns**\n${wrapCodeBlock(
