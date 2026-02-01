@@ -86,7 +86,7 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
       return sum + round.steps;
     }, 0) ?? 0;
     const totalsLine =
-      `Total: ${totalScore}pts | ${totalSteps}steps | ${totalTime} | ${totalDistance}km`;
+      `Total:\n ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`;
 
     if (!friend.roundResults || friend.roundResults.length === 0) {
       const block = ["No round data.", totalsLine].join("\n");
