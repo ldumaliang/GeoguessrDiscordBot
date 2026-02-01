@@ -45,14 +45,35 @@ function formatRoundLocations(
   return lines.join("\n");
 }
 
-function formatRoundResults(
+function formatRoundResultsTable(
   roundResults: DailyFriendRoundResult[]
 ): string[] {
-  return roundResults.map((round) => {
-    const guess = round.guessedCountry ?? "Unknown";
-
-    return `${round.round} | ${round.steps} | ${round.score} | ${guess}`;
+  const headers = ["Round", "Steps", "Score", "Guess"];
+  const rows = roundResults.map((round) => {
+    return [
+      round.round.toString(),
+      round.steps.toString(),
+      round.score.toString(),
+      round.guessedCountry ?? "Unknown"
+    ];
   });
+
+  const widths = headers.map((header, index) => {
+    const cellWidths = rows.map((row) => row[index].length);
+    return Math.max(header.length, ...cellWidths);
+  });
+
+  const padRow = (cells: string[]) => {
+    return cells
+      .map((cell, index) => cell.padEnd(widths[index]))
+      .join(" | ");
+  };
+
+  const headerLine = padRow(headers);
+  const dividerLine = widths.map((width) => "-".repeat(width)).join(" | ");
+  const dataLines = rows.map(padRow);
+
+  return [headerLine, dividerLine, ...dataLines];
 }
 
 function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
@@ -76,9 +97,7 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     }
 
     lines.push(friend.nick);
-    lines.push("Round | Steps | Score | Guess");
-    lines.push("----- | ----- | ----- | -----");
-    lines.push(...formatRoundResults(friend.roundResults));
+    lines.push(...formatRoundResultsTable(friend.roundResults));
     lines.push(
       `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`
     );
