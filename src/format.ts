@@ -77,7 +77,7 @@ function formatRoundResultsTable(
 }
 
 function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
-  const lines: string[] = [];
+  const sections: string[] = [];
   for (const friend of entries) {
     const totalScore = Math.round(friend.totalScore).toString();
     const totalTime = formatTime(friend.totalTime);
@@ -85,34 +85,27 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     const totalSteps = friend.roundResults?.reduce((sum, round) => {
       return sum + round.steps;
     }, 0) ?? 0;
+    const totalsLine =
+      `Total: ${totalScore}pts | ${totalSteps}st | ${totalTime} | ${totalDistance}km`;
 
     if (!friend.roundResults || friend.roundResults.length === 0) {
-      lines.push(friend.nick);
-      lines.push("No round data.");
-      lines.push(
-        `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`
-      );
-      lines.push("");
+      const block = ["No round data.", totalsLine].join("\n");
+      sections.push(`**${friend.nick}**\n${wrapCodeBlock(block)}`);
       continue;
     }
 
-    lines.push(friend.nick);
-    lines.push(...formatRoundResultsTable(friend.roundResults));
-    lines.push(
-      `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`
-    );
-    lines.push("");
+    const tableLines = [
+      ...formatRoundResultsTable(friend.roundResults),
+      totalsLine
+    ];
+    sections.push(`**${friend.nick}**\n${wrapCodeBlock(tableLines.join("\n"))}`);
   }
 
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-
-  if (lines.length === 0) {
+  if (sections.length === 0) {
     return null;
   }
 
-  return lines.join("\n");
+  return sections.join("\n\n");
 }
 
 function wrapCodeBlock(content: string): string {
@@ -153,9 +146,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
 
   const playerBreakdowns = formatPlayerBreakdowns(sorted);
   if (playerBreakdowns) {
-    sections.push(
-      `**Player Round Breakdowns**\n${wrapCodeBlock(playerBreakdowns)}`
-    );
+    sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
   } else {
     sections.push(
       `**Player Round Breakdowns**\n${wrapCodeBlock(
