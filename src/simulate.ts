@@ -2,70 +2,10 @@ import "dotenv/config";
 import { fetchDailyChallengeResultsFromSamples } from "./geoguessr.samples.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
+import { parseIntEnv, getOptionalEnv, parseOptionalIntEnv, parseBoolEnv } from "./utils.js";
 import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
 
-function parseIntEnv(
-  name: string,
-  fallback: number,
-  min: number,
-  max: number
-): number {
-  const raw = process.env[name];
-  if (!raw) {
-    return fallback;
-  }
 
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
-    throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
-    );
-  }
-
-  return parsed;
-}
-
-function parseOptionalIntEnv(
-  name: string,
-  min: number,
-  max: number
-): number | undefined {
-  const raw = process.env[name];
-  if (!raw) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
-    throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
-    );
-  }
-
-  return parsed;
-}
-
-function parseBoolEnv(name: string, fallback: boolean): boolean {
-  const raw = process.env[name];
-  if (!raw) {
-    return fallback;
-  }
-
-  const normalized = raw.trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) {
-    return true;
-  }
-  if (["0", "false", "no", "off"].includes(normalized)) {
-    return false;
-  }
-
-  throw new Error(`Invalid ${name} value. Expected a boolean.`);
-}
-
-function getOptionalEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
-}
 
 async function run(): Promise<void> {
   const closeHourUtc = parseIntEnv("DAILY_CHALLENGE_CLOSE_HOUR_UTC", 0, 0, 23);
@@ -80,7 +20,7 @@ async function run(): Promise<void> {
     sampleDir: getOptionalEnv("SIMULATED_DATA_DIR"),
     targetDate: getOptionalEnv("SIMULATED_TARGET_DATE"),
     closeHourUtc,
-    closeMinuteUtc
+    closeMinuteUtc,
   });
 
   await enrichDailyChallengeResultsWithLocations(daily, {

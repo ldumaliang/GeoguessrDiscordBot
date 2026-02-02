@@ -12,7 +12,7 @@ import {
   type DailyFriendResult,
   type DailyFriendRoundResult,
   type FriendSummary,
-  getChallengeDayKey
+  getChallengeDayKey,
 } from "./geoguessr.js";
 
 export type SampleDataOptions = {
@@ -54,7 +54,7 @@ function resolveSampleProfile(raw: unknown): FriendSummary {
       userId: userProfile.id,
       nick: userProfile.nick,
       countryCode: userProfile.countryCode,
-      isVerified: userProfile.isVerified
+      isVerified: userProfile.isVerified,
     };
   }
 
@@ -143,9 +143,9 @@ export async function fetchDailyChallengeResultsFromSamples(
 
   const [friendsRaw, profileRaw, userRaw, resultsRaw] = await Promise.all([
     loadJsonFile(join(sampleDir, "friends.json")),
-    loadJsonFile(join(sampleDir, "profile.json")),
+    loadJsonFile(join(sampledir, "profile.json")),
     loadJsonFile(join(sampleDir, "user.json")),
-    loadOptionalJsonFile(join(sampleDir, "results.json"))
+    loadOptionalJsonFile(join(sampleDir, "results.json")),
   ]);
 
   const friendsParsed = FRIENDS_RESPONSE_SCHEMA.safeParse(friendsRaw);
@@ -174,7 +174,8 @@ export async function fetchDailyChallengeResultsFromSamples(
 
   const targetEntry = entries.find(
     (value) =>
-      getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) === targetDate
+      getChallengeDayKey(value.date, closeHourUtc, closeMinuteUtc) ===
+      targetDate
   );
 
   const usersById = new Map<string, FriendSummary>();
@@ -266,7 +267,7 @@ export async function fetchDailyChallengeResultsFromSamples(
         roundResults,
         countryCode: user.countryCode ?? null,
         isVerified: user.isVerified,
-        flair: user.flair
+        flair: user.flair,
       });
     }
   }

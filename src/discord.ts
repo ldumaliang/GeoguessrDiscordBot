@@ -1,38 +1,59 @@
-const DEFAULT_USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
+import {
+  DEFAULT_USER_AGENT,
+  sleep,
+  MAX_RETRY_ATTEMPTS,
+  RETRY_BASE_DELAY_MS,
+  RETRY_BACKOFF_MULTIPLIER,
+  RETRYABLE_STATUS_CODES,
+  REQUEST_TIMEOUT_MS,
+} from "./utils.js";
 
 async function postWithRetry(
   url: string,
   payload: unknown,
   attempt = 1
 ): Promise<Response> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": DEFAULT_USER_AGENT
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  if (response.ok) {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": DEFAULT_USER_AGENT,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      return response;
+    }
+
+    if (
+      RETRYABLE_STATUS_CODES.includes(response.status) &&
+      attempt < MAX_RETRY_ATTEMPTS
+    ) {
+      const delay =
+        RETRY_BASE_DELAY_MS * RETRY_BACKOFF_MULTIPLIER ** (attempt - 1);
+      console.warn(
+        `Discord webhook failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRY_ATTEMPTS}).`
+      );
+      await sleep(delay);
+      return postWithRetry(url, payload, attempt + 1);
+    }
+
     return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if ((error as Error).name === "AbortError") {
+      throw new Error(`Request timeout after ${REQUEST_TIMEOUT_MS}ms: ${url}`);
+    }
+    throw error;
   }
-
-  if ([429, 500, 502, 503, 504].includes(response.status) && attempt < 3) {
-    const delay = 500 * 2 ** (attempt - 1);
-    console.warn(
-      `Discord webhook failed with ${response.status}. Retrying in ${delay}ms (attempt ${attempt + 1}/3).`
-    );
-    await sleep(delay);
-    return postWithRetry(url, payload, attempt + 1);
-  }
-
-  return response;
 }
 
 export async function postDiscordMessage(

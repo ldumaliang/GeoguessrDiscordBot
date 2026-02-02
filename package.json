@@ -6,7 +6,12 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "simulate": "tsx src/simulate.ts",
-    "lint": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "clean": "rm -rf dist .cache"
   },
   "engines": {
     "node": ">=20"
@@ -16,6 +21,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/node": "^25.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

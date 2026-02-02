@@ -4,41 +4,15 @@ import { join } from "node:path";
 import { fetchDailyChallengeResults } from "./geoguessr.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
+import { parseIntEnv, getRequiredEnv, getRequiredUrl } from "./utils.js";
 import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
 
 const CACHE_DIR = ".cache";
 const CACHE_FILE = "last_token.txt";
 
 function getAuthCookie(): string {
-  const ncfaToken = process.env.NCFA_TOKEN?.trim();
-  if (ncfaToken) {
-    return `_ncfa=${ncfaToken}`;
-  }
-
-  throw new Error(
-    "Missing NCFA_TOKEN environment variable."
-  );
-}
-
-function parseIntEnv(
-  name: string,
-  fallback: number,
-  min: number,
-  max: number
-): number {
-  const raw = process.env[name];
-  if (!raw) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
-    throw new Error(
-      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
-    );
-  }
-
-  return parsed;
+  const ncfaToken = getRequiredEnv("NCFA_TOKEN");
+  return `_ncfa=${ncfaToken}`;
 }
 
 function parseOptionalIntEnv(
@@ -82,23 +56,30 @@ async function readLastToken(): Promise<string | null> {
   try {
     const content = await readFile(join(CACHE_DIR, CACHE_FILE), "utf8");
     return content.trim() || null;
-  } catch {
+  } catch (error) {
+    // File not found is expected on first run
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    // Log other filesystem errors but continue
+    console.warn("Failed to read cache file:", error);
     return null;
   }
 }
 
 async function writeLastToken(token: string): Promise<void> {
-  await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(join(CACHE_DIR, CACHE_FILE), `${token}\n`, "utf8");
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(join(CACHE_DIR, CACHE_FILE), `${token}\n`, "utf8");
+  } catch (error) {
+    // Log but don't fail the entire run if cache write fails
+    console.warn("Failed to write cache file:", error);
+  }
 }
 
 async function run(): Promise<void> {
   const cookie = getAuthCookie();
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL?.trim();
-
-  if (!webhookUrl) {
-    throw new Error("Missing DISCORD_WEBHOOK_URL environment variable.");
-  }
+  const webhookUrl = getRequiredUrl("DISCORD_WEBHOOK_URL");
 
   const closeHourUtc = parseIntEnv("DAILY_CHALLENGE_CLOSE_HOUR_UTC", 0, 0, 23);
   const closeMinuteUtc = parseIntEnv(
@@ -110,7 +91,7 @@ async function run(): Promise<void> {
 
   const daily = await fetchDailyChallengeResults(cookie, {
     closeHourUtc,
-    closeMinuteUtc
+    closeMinuteUtc,
   });
 
   await enrichDailyChallengeResultsWithLocations(daily, {
