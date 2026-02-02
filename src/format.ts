@@ -214,17 +214,11 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
     if (daily.roundLocations?.some((round) => round.locationName)) {
       sections.push("_Location data © OpenStreetMap contributors._");
     }
-  } else {
-    sections.push("**Round Locations**\nRound locations: unavailable.");
   }
 
   const playerBreakdowns = formatPlayerBreakdowns(sorted);
   if (playerBreakdowns) {
     sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
-  } else {
-    sections.push(
-      "**Player Round Breakdowns**\nPlayer round breakdowns: unavailable."
-    );
   }
 
   return sections.join("\n\n");

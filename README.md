@@ -5,7 +5,7 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 ## Features
 
 - GeoGuessr Daily Challenge “friends” leaderboard for the logged-in account.
-- Discord webhook post with a clean, table-like message plus per-round details.
+- Discord webhook post with a clean, table-like message plus per-round details when available.
 - Retries with exponential backoff for transient errors (429/5xx).
 - Optional idempotency via a cached daily token.
 - Scheduled daily via GitHub Actions.
@@ -19,13 +19,13 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 
 ## Setup
 
-### 1) Get `GEOGUESSR_COOKIE`
+### 1) Get `NCFA_TOKEN`
 
 1. Log into GeoGuessr in your browser.
 2. Open DevTools → **Application** (Chrome) or **Storage** (Firefox).
 3. Under **Cookies**, select `https://www.geoguessr.com`.
-4. Copy the full cookie string (e.g. `_ncfa=...; othercookie=...`).
-5. Store it in an environment variable named `GEOGUESSR_COOKIE`.
+4. Copy the `_ncfa` cookie value (just the value, not the key).
+5. Store it in an environment variable named `NCFA_TOKEN`.
 
 ### 2) Create a Discord Webhook
 
@@ -39,7 +39,7 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 
 ```bash
 npm install
-GEOGUESSR_COOKIE="..." DISCORD_WEBHOOK_URL="..." npm run start
+NCFA_TOKEN="..." DISCORD_WEBHOOK_URL="..." npm run start
 ```
 
 For pull request CI runs, set the `DISCORD_WEBHOOK_URL_PR` GitHub Actions secret.
@@ -52,9 +52,24 @@ GeoGuessr `totalDistance` appears to be either kilometers or meters. This app as
 
 ### Per-Round Details
 
-When the daily challenge token is available, the app fetches the friends results
-endpoint to add round-by-round breakdowns (time taken, steps, score, guessed
-country) and the round locations (latitude/longitude) to the Discord post.
+When detailed results are available, the app fetches the friends results endpoint
+to add round-by-round breakdowns (time taken, steps, score, guessed country) and
+the round locations (latitude/longitude) to the Discord post. If the detailed
+results endpoint is unavailable for that day, those sections are omitted.
+
+### Simulate (Test Harness)
+
+Run the app against sample endpoint payloads instead of live GeoGuessr data.
+
+```bash
+npm run simulate
+```
+
+Optional environment variables:
+- `SIMULATED_DATA_DIR` (default: `endpoint-samples`)
+- `SIMULATED_TARGET_DATE` (optional override, `YYYY-MM-DD`)
+
+If `DISCORD_WEBHOOK_URL` is set, the simulated message is posted to Discord.
 
 ### Reverse Geocoding (Town/Country)
 
@@ -79,12 +94,21 @@ Env config:
 ├── .cache/                # cached token for idempotency
 ├── .github/workflows/
 │   └── daily.yml
+├── AGENTS.md
 ├── src/
 │   ├── discord.ts
 │   ├── format.ts
 │   ├── geoguessr.ts
-│   └── index.ts
+│   ├── index.ts
+│   └── simulate.ts
+├── endpoint-samples/
+│   └── README.md
 ├── .env.example
 ├── package.json
 └── tsconfig.json
 ```
+
+## Agent Rules
+
+If you use an AI coding agent, see `AGENTS.md` for project-specific rules and
+documentation update expectations.
