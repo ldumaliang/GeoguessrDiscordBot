@@ -5,6 +5,7 @@ import { fetchDailyChallengeResults } from "./geoguessr.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
 import { parseIntEnv, getRequiredEnv, getRequiredUrl } from "./utils.js";
+import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
 
 const CACHE_DIR = ".cache";
 const CACHE_FILE = "last_token.txt";
@@ -12,6 +13,43 @@ const CACHE_FILE = "last_token.txt";
 function getAuthCookie(): string {
   const ncfaToken = getRequiredEnv("NCFA_TOKEN");
   return `_ncfa=${ncfaToken}`;
+}
+
+function parseOptionalIntEnv(
+  name: string,
+  min: number,
+  max: number
+): number | undefined {
+  const raw = process.env[name];
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isNaN(parsed) || parsed < min || parsed > max) {
+    throw new Error(
+      `Invalid ${name} value. Expected an integer between ${min} and ${max}.`
+    );
+  }
+
+  return parsed;
+}
+
+function parseBoolEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const normalized = raw.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error(`Invalid ${name} value. Expected a boolean.`);
 }
 
 async function readLastToken(): Promise<string | null> {
@@ -54,6 +92,17 @@ async function run(): Promise<void> {
   const daily = await fetchDailyChallengeResults(cookie, {
     closeHourUtc,
     closeMinuteUtc,
+  });
+
+  await enrichDailyChallengeResultsWithLocations(daily, {
+    enabled: parseBoolEnv("GEOCODE_LOCATIONS", true),
+    baseUrl: process.env.NOMINATIM_BASE_URL?.trim(),
+    userAgent: process.env.NOMINATIM_USER_AGENT?.trim(),
+    email: process.env.NOMINATIM_EMAIL?.trim(),
+    language: process.env.NOMINATIM_LANGUAGE?.trim(),
+    delayMs: parseOptionalIntEnv("NOMINATIM_DELAY_MS", 0, 10000),
+    cachePath: process.env.NOMINATIM_CACHE_PATH?.trim(),
+    zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18)
   });
 
   const cacheKey = daily.challengeToken ?? daily.date;

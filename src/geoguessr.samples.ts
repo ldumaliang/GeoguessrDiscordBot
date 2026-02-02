@@ -4,10 +4,13 @@ import {
   FRIEND_SCHEMA,
   FRIENDS_RESPONSE_SCHEMA,
   PROFILE_SCHEMA,
+  RESULTS_RESPONSE_SCHEMA,
   USER_STATS_SCHEMA,
+  type DailyChallengeRoundLocation,
   type DailyChallengeEntry,
   type DailyChallengeResults,
   type DailyFriendResult,
+  type DailyFriendRoundResult,
   type FriendSummary,
   getChallengeDayKey,
 } from "./geoguessr.js";
@@ -26,6 +29,14 @@ async function loadJsonFile(path: string): Promise<unknown> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse JSON in ${path}: ${message}`);
+  }
+}
+
+async function loadOptionalJsonFile(path: string): Promise<unknown | null> {
+  try {
+    return await loadJsonFile(path);
+  } catch {
+    return null;
   }
 }
 
@@ -130,10 +141,11 @@ export async function fetchDailyChallengeResultsFromSamples(
   const closeHourUtc = options.closeHourUtc ?? 0;
   const closeMinuteUtc = options.closeMinuteUtc ?? 0;
 
-  const [friendsRaw, profileRaw, userRaw] = await Promise.all([
+  const [friendsRaw, profileRaw, userRaw, resultsRaw] = await Promise.all([
     loadJsonFile(join(sampleDir, "friends.json")),
-    loadJsonFile(join(sampleDir, "profile.json")),
+    loadJsonFile(join(sampledir, "profile.json")),
     loadJsonFile(join(sampleDir, "user.json")),
+    loadOptionalJsonFile(join(sampleDir, "results.json")),
   ]);
 
   const friendsParsed = FRIENDS_RESPONSE_SCHEMA.safeParse(friendsRaw);
@@ -176,9 +188,56 @@ export async function fetchDailyChallengeResultsFromSamples(
   const maxScore = 25000;
   const maxTimeSeconds = 15 * 60;
   const maxDistanceMeters = Math.PI * 6371 * 1000 * 5;
+  let roundLocations: DailyChallengeRoundLocation[] | undefined;
+  const roundResultsById = new Map<string, DailyFriendRoundResult[]>();
+  const roundResultsByNick = new Map<string, DailyFriendRoundResult[]>();
+
+  if (resultsRaw) {
+    const resultsParsed = RESULTS_RESPONSE_SCHEMA.safeParse(resultsRaw);
+    if (!resultsParsed.success) {
+      throw new Error(
+        `Sample results schema mismatch: ${resultsParsed.error.message}`
+      );
+    }
+
+    for (const item of resultsParsed.data.items) {
+      if (!roundLocations && item.game.rounds.length > 0) {
+        roundLocations = item.game.rounds.map((round, index) => ({
+          round: index + 1,
+          lat: round.lat,
+          lng: round.lng
+        }));
+      }
+
+      const roundResults = item.game.player.guesses.map((guess, index) => {
+        let score = guess.roundScoreInPoints;
+        if (typeof score !== "number") {
+          const parsed = guess.roundScore?.amount
+            ? Number.parseInt(guess.roundScore.amount, 10)
+            : Number.NaN;
+          score = Number.isNaN(parsed) ? 0 : parsed;
+        }
+
+        return {
+          round: index + 1,
+          time: guess.time,
+          steps: guess.stepsCount,
+          score,
+          guessLat: guess.lat,
+          guessLng: guess.lng
+        };
+      });
+
+      roundResultsById.set(item.game.player.id, roundResults);
+      roundResultsByNick.set(item.game.player.nick.toLowerCase(), roundResults);
+    }
+  }
 
   if (targetEntry) {
     for (const user of usersById.values()) {
+      const roundResults =
+        roundResultsById.get(user.userId) ??
+        roundResultsByNick.get(user.nick.toLowerCase());
       results.push({
         userId: user.userId,
         nick: user.nick,
@@ -205,6 +264,7 @@ export async function fetchDailyChallengeResultsFromSamples(
           0,
           maxDistanceMeters
         ),
+        roundResults,
         countryCode: user.countryCode ?? null,
         isVerified: user.isVerified,
         flair: user.flair,
@@ -216,5 +276,6 @@ export async function fetchDailyChallengeResultsFromSamples(
     date: targetDate,
     challengeToken: targetEntry?.challengeToken ?? null,
     results,
+    roundLocations
   };
 }

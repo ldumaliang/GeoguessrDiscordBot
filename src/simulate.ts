@@ -2,7 +2,10 @@ import "dotenv/config";
 import { fetchDailyChallengeResultsFromSamples } from "./geoguessr.samples.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
-import { parseIntEnv, getOptionalEnv } from "./utils.js";
+import { parseIntEnv, getOptionalEnv, parseOptionalIntEnv, parseBoolEnv } from "./utils.js";
+import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
+
+
 
 async function run(): Promise<void> {
   const closeHourUtc = parseIntEnv("DAILY_CHALLENGE_CLOSE_HOUR_UTC", 0, 0, 23);
@@ -18,6 +21,17 @@ async function run(): Promise<void> {
     targetDate: getOptionalEnv("SIMULATED_TARGET_DATE"),
     closeHourUtc,
     closeMinuteUtc,
+  });
+
+  await enrichDailyChallengeResultsWithLocations(daily, {
+    enabled: parseBoolEnv("GEOCODE_LOCATIONS", true),
+    baseUrl: getOptionalEnv("NOMINATIM_BASE_URL"),
+    userAgent: getOptionalEnv("NOMINATIM_USER_AGENT"),
+    email: getOptionalEnv("NOMINATIM_EMAIL"),
+    language: getOptionalEnv("NOMINATIM_LANGUAGE"),
+    delayMs: parseOptionalIntEnv("NOMINATIM_DELAY_MS", 0, 10000),
+    cachePath: getOptionalEnv("NOMINATIM_CACHE_PATH"),
+    zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18)
   });
 
   const message = buildLeaderboardMessage(daily);

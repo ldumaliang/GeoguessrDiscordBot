@@ -11,6 +11,9 @@ Endpoints
 - GET https://www.geoguessr.com/api/v3/profiles
   -> profile.json
 
+- GET https://www.geoguessr.com/api/v3/results/highscores/<challengeToken>?friends=true
+  -> results.json (detailed per-round friend results)
+
 Notes
 - IDs, names, tokens, and timestamps are placeholders.
 - Arrays are trimmed for readability; field names and nesting are preserved.

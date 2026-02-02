@@ -1,4 +1,9 @@
-import type { DailyChallengeResults, DailyFriendResult } from "./geoguessr.js";
+import type {
+  DailyChallengeResults,
+  DailyFriendResult,
+  DailyFriendRoundResult,
+  DailyChallengeRoundLocation
+} from "./geoguessr.js";
 
 const TOP_N_LIMIT = 25;
 const DISTANCE_THRESHOLD_METERS = 1000;
@@ -77,6 +82,111 @@ function buildTable(entries: DailyFriendResult[]): string {
   return [headerLine, separatorLine, ...dataLines].join("\n");
 }
 
+function formatRoundLocations(
+  locations: DailyChallengeRoundLocation[] | undefined
+): string | null {
+  if (!locations || locations.length === 0) {
+    return null;
+  }
+
+  const lines = locations.map(
+    (round) =>
+      round.locationName
+        ? `R${round.round}: ${round.locationName} (${round.lat.toFixed(6)}, ${round.lng.toFixed(6)})`
+        : `R${round.round}: ${round.lat.toFixed(6)}, ${round.lng.toFixed(6)}`
+  );
+
+  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+}
+
+function formatRoundResults(
+  roundResults: DailyFriendRoundResult[],
+  widths: {
+    round: number;
+    time: number;
+    steps: number;
+    score: number;
+    guess: number;
+  }
+): string[] {
+  return roundResults.map((round) => {
+    const guess = round.guessedCountry
+      ? `guess ${round.guessedCountry}`
+      : "guess unknown";
+    const roundLabel = pad(`R${round.round}`, widths.round);
+    const timeLabel = pad(formatTime(round.time), widths.time);
+    const stepsLabel = pad(`steps ${round.steps}`, widths.steps);
+    const scoreLabel = pad(`score ${round.score}`, widths.score);
+    const guessLabel = pad(guess, widths.guess);
+
+    return `${roundLabel} ${timeLabel} | ${stepsLabel} | ${scoreLabel} | ${guessLabel}`;
+  });
+}
+
+function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
+  const lines: string[] = [];
+  const allRoundResults = entries.flatMap(
+    (entry) => entry.roundResults ?? []
+  );
+  const widths = {
+    round: Math.max(
+      "R10".length,
+      ...allRoundResults.map((round) => `R${round.round}`.length),
+      2
+    ),
+    time: Math.max(
+      "00:00".length,
+      ...allRoundResults.map((round) => formatTime(round.time).length),
+      5
+    ),
+    steps: Math.max(
+      "steps 0".length,
+      ...allRoundResults.map((round) => `steps ${round.steps}`.length),
+      7
+    ),
+    score: Math.max(
+      "score 0".length,
+      ...allRoundResults.map((round) => `score ${round.score}`.length),
+      7
+    ),
+    guess: Math.max(
+      "guess unknown".length,
+      ...allRoundResults.map((round) =>
+        (round.guessedCountry
+          ? `guess ${round.guessedCountry}`
+          : "guess unknown"
+        ).length
+      ),
+      12
+    )
+  };
+
+  for (const friend of entries) {
+    if (!friend.roundResults || friend.roundResults.length === 0) {
+      lines.push(`${friend.nick}: no round data`);
+      continue;
+    }
+
+    lines.push(friend.nick);
+    lines.push(
+      ...formatRoundResults(friend.roundResults, widths).map(
+        (line) => `  ${line}`
+      )
+    );
+    lines.push("");
+  }
+
+  while (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+}
+
 export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const title = `GeoGuessr Daily - Friends (${daily.date})`;
   const participantLine = `Friends played: ${daily.results.length}`;
@@ -97,5 +207,28 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const remaining = sorted.length - top.length;
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";
 
-  return `${title}\n${participantLine}\n\n\`\`\`\n${table}\n\`\`\`${suffix}`;
+  const sections = [
+    `**${title}**\n${participantLine}\n\n\`\`\`\n${table}\n\`\`\`${suffix}`
+  ];
+
+  const roundLocations = formatRoundLocations(daily.roundLocations);
+  if (roundLocations) {
+    sections.push(`**Round Locations**\n${roundLocations}`);
+    if (daily.roundLocations?.some((round) => round.locationName)) {
+      sections.push("_Location data © OpenStreetMap contributors._");
+    }
+  } else {
+    sections.push("**Round Locations**\nRound locations: unavailable.");
+  }
+
+  const playerBreakdowns = formatPlayerBreakdowns(sorted);
+  if (playerBreakdowns) {
+    sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
+  } else {
+    sections.push(
+      "**Player Round Breakdowns**\nPlayer round breakdowns: unavailable."
+    );
+  }
+
+  return sections.join("\n\n");
 }
