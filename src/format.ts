@@ -82,9 +82,9 @@ function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
     const totalScore = Math.round(friend.totalScore).toString();
     const totalTime = formatTime(friend.totalTime);
     const totalDistance = formatDistance(friend.totalDistance);
-    const totalSteps = friend.roundResults?.reduce((sum, round) => {
+    const totalSteps = (friend.roundResults ?? []).reduce((sum, round) => {
       return sum + round.steps;
-    }, 0) ?? 0;
+    }, 0);
     const totalsLine =
       `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`;
 
