@@ -1,7 +1,8 @@
 Endpoint Samples
 
 Sanitized response examples from GeoGuessr endpoints. Values are fake but the
-shape matches the real responses to help guide parsing.
+shape matches the real responses to help guide parsing. These samples are used
+by the `npm run simulate` test harness.
 
 Endpoints
 - GET https://www.geoguessr.com/api/v3/social/friends/summary

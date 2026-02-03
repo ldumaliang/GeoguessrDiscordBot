@@ -116,7 +116,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const title = `GeoGuessr Daily - Friends (${daily.date})`;
   const participantLine = `Friends played: ${daily.results.length}`;
 
-  if (daily.results.length === 0) {
+  if (daily.results.length === 0) {W
     return `${title}\n${participantLine}\nNo friends completed this Daily.`;
   }
 
@@ -137,22 +137,15 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
 
   const roundLocations = formatRoundLocations(daily.roundLocations);
   if (roundLocations) {
-    sections.push(`**Round Locations**\n${wrapCodeBlock(roundLocations)}`);
-  } else {
-    sections.push(
-      `**Round Locations**\n${wrapCodeBlock("Round locations: unavailable.")}`
-    );
+    sections.push(`**Round Locations**\n${roundLocations}`);
+    if (daily.roundLocations?.some((round) => round.locationName)) {
+      sections.push("_Location data © OpenStreetMap contributors._");
+    }
   }
 
   const playerBreakdowns = formatPlayerBreakdowns(sorted);
   if (playerBreakdowns) {
-    sections.push(`**Player Round Breakdowns**\n\n${playerBreakdowns}`);
-  } else {
-    sections.push(
-      `**Player Round Breakdowns**\n${wrapCodeBlock(
-        "Player round breakdowns: unavailable."
-      )}`
-    );
+    sections.push(`**Player Round Breakdowns**\n${playerBreakdowns}`);
   }
 
   return sections.join("\n\n");
