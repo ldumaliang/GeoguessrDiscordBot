@@ -16,67 +16,15 @@ function formatDistance(value: number): string {
   return km.toFixed(1);
 }
 
-function pad(value: string, length: number): string {
-  return value.length >= length ? value : value.padEnd(length, " ");
-}
-
-function buildTable(entries: DailyFriendResult[]): string {
-  const rows = entries.map((friend, index) => {
-    return {
-      rank: String(index + 1),
-      name: friend.nick,
-      score: Math.round(friend.totalScore).toString(),
-      time: formatTime(friend.totalTime),
-      distance: formatDistance(friend.totalDistance)
-    };
+function buildLeaderboardSummary(entries: DailyFriendResult[]): string {
+  const medals = ["🥇", "🥈", "🥉"];
+  const lines = entries.map((friend, index) => {
+    const score = Math.round(friend.totalScore).toString();
+    const medal = medals[index] ? `${medals[index]} ` : "";
+    return `${index + 1}. ${medal}${friend.nick} — ${score} pts`;
   });
 
-  const headers = {
-    rank: "Rank",
-    name: "Name",
-    score: "Score",
-    time: "Time",
-    distance: "Dist(km)"
-  };
-
-  const widths = {
-    rank: Math.max(headers.rank.length, ...rows.map((r) => r.rank.length)),
-    name: Math.max(headers.name.length, ...rows.map((r) => r.name.length)),
-    score: Math.max(headers.score.length, ...rows.map((r) => r.score.length)),
-    time: Math.max(headers.time.length, ...rows.map((r) => r.time.length)),
-    distance: Math.max(
-      headers.distance.length,
-      ...rows.map((r) => r.distance.length)
-    )
-  };
-
-  const headerLine = [
-    pad(headers.rank, widths.rank),
-    pad(headers.name, widths.name),
-    pad(headers.score, widths.score),
-    pad(headers.time, widths.time),
-    pad(headers.distance, widths.distance)
-  ].join(" | ");
-
-  const separatorLine = [
-    "-".repeat(widths.rank),
-    "-".repeat(widths.name),
-    "-".repeat(widths.score),
-    "-".repeat(widths.time),
-    "-".repeat(widths.distance)
-  ].join("-+-");
-
-  const dataLines = rows.map((row) => {
-    return [
-      pad(row.rank, widths.rank),
-      pad(row.name, widths.name),
-      pad(row.score, widths.score),
-      pad(row.time, widths.time),
-      pad(row.distance, widths.distance)
-    ].join(" | ");
-  });
-
-  return [headerLine, separatorLine, ...dataLines].join("\n");
+  return lines.join("\n");
 }
 
 function formatRoundLocations(
@@ -86,109 +34,89 @@ function formatRoundLocations(
     return null;
   }
 
-  const lines = locations.map(
-    (round) =>
-      round.locationName
-        ? `R${round.round}: ${round.locationName} (${round.lat.toFixed(6)}, ${round.lng.toFixed(6)})`
-        : `R${round.round}: ${round.lat.toFixed(6)}, ${round.lng.toFixed(6)}`
-  );
+  const lines = locations.map((round) => {
+    if (round.locationName) {
+      return `- R${round.round}: ${round.locationName}`;
+    }
 
-  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+    return `- R${round.round}: Unknown location`;
+  });
+
+  return lines.join("\n");
 }
 
-function formatRoundResults(
-  roundResults: DailyFriendRoundResult[],
-  widths: {
-    round: number;
-    time: number;
-    steps: number;
-    score: number;
-    guess: number;
-  }
+function formatRoundResultsTable(
+  roundResults: DailyFriendRoundResult[]
 ): string[] {
-  return roundResults.map((round) => {
-    const guess = round.guessedCountry
-      ? `guess ${round.guessedCountry}`
-      : "guess unknown";
-    const roundLabel = pad(`R${round.round}`, widths.round);
-    const timeLabel = pad(formatTime(round.time), widths.time);
-    const stepsLabel = pad(`steps ${round.steps}`, widths.steps);
-    const scoreLabel = pad(`score ${round.score}`, widths.score);
-    const guessLabel = pad(guess, widths.guess);
-
-    return `${roundLabel} ${timeLabel} | ${stepsLabel} | ${scoreLabel} | ${guessLabel}`;
+  const headers = ["Round", "Steps", "Score", "Guess"];
+  const rows = roundResults.map((round) => {
+    return [
+      round.round.toString(),
+      round.steps.toString(),
+      round.score.toString(),
+      round.guessedCountry ?? "Unknown"
+    ];
   });
+
+  const widths = headers.map((header, index) => {
+    const cellWidths = rows.map((row) => row[index].length);
+    return Math.max(header.length, ...cellWidths);
+  });
+
+  const padRow = (cells: string[]) => {
+    return cells
+      .map((cell, index) => cell.padEnd(widths[index]))
+      .join(" | ");
+  };
+
+  const headerLine = padRow(headers);
+  const dividerLine = widths.map((width) => "-".repeat(width)).join(" | ");
+  const dataLines = rows.map(padRow);
+
+  return [headerLine, dividerLine, ...dataLines];
 }
 
 function formatPlayerBreakdowns(entries: DailyFriendResult[]): string | null {
-  const lines: string[] = [];
-  const allRoundResults = entries.flatMap(
-    (entry) => entry.roundResults ?? []
-  );
-  const widths = {
-    round: Math.max(
-      "R10".length,
-      ...allRoundResults.map((round) => `R${round.round}`.length),
-      2
-    ),
-    time: Math.max(
-      "00:00".length,
-      ...allRoundResults.map((round) => formatTime(round.time).length),
-      5
-    ),
-    steps: Math.max(
-      "steps 0".length,
-      ...allRoundResults.map((round) => `steps ${round.steps}`.length),
-      7
-    ),
-    score: Math.max(
-      "score 0".length,
-      ...allRoundResults.map((round) => `score ${round.score}`.length),
-      7
-    ),
-    guess: Math.max(
-      "guess unknown".length,
-      ...allRoundResults.map((round) =>
-        (round.guessedCountry
-          ? `guess ${round.guessedCountry}`
-          : "guess unknown"
-        ).length
-      ),
-      12
-    )
-  };
-
+  const sections: string[] = [];
   for (const friend of entries) {
+    const totalScore = Math.round(friend.totalScore).toString();
+    const totalTime = formatTime(friend.totalTime);
+    const totalDistance = formatDistance(friend.totalDistance);
+    const totalSteps = (friend.roundResults ?? []).reduce((sum, round) => {
+      return sum + round.steps;
+    }, 0);
+    const totalsLine =
+      `Total: ${totalScore} pts | ${totalSteps} steps | ${totalTime} | ${totalDistance} km`;
+
     if (!friend.roundResults || friend.roundResults.length === 0) {
-      lines.push(`${friend.nick}: no round data`);
+      const block = ["No round data.", totalsLine].join("\n");
+      sections.push(`**${friend.nick}**\n${wrapCodeBlock(block)}`);
       continue;
     }
 
-    lines.push(friend.nick);
-    lines.push(
-      ...formatRoundResults(friend.roundResults, widths).map(
-        (line) => `  ${line}`
-      )
-    );
-    lines.push("");
+    const tableLines = [
+      ...formatRoundResultsTable(friend.roundResults),
+      totalsLine
+    ];
+    sections.push(`**${friend.nick}**\n${wrapCodeBlock(tableLines.join("\n"))}`);
   }
 
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-
-  if (lines.length === 0) {
+  if (sections.length === 0) {
     return null;
   }
 
-  return `\`\`\`\n${lines.join("\n")}\n\`\`\``;
+  return sections.join("\n\n");
+}
+
+function wrapCodeBlock(content: string): string {
+  return `\`\`\`\n${content}\n\`\`\``;
 }
 
 export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const title = `GeoGuessr Daily - Friends (${daily.date})`;
   const participantLine = `Friends played: ${daily.results.length}`;
 
-  if (daily.results.length === 0) {
+  if (daily.results.length === 0) {W
     return `${title}\n${participantLine}\nNo friends completed this Daily.`;
   }
 
@@ -200,13 +128,12 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   });
 
   const top = sorted.slice(0, 25);
-  const table = buildTable(top);
+  const summary = buildLeaderboardSummary(top);
   const remaining = sorted.length - top.length;
   const suffix = remaining > 0 ? `\n+${remaining} more` : "";
 
-  const sections = [
-    `**${title}**\n${participantLine}\n\n\`\`\`\n${table}\n\`\`\`${suffix}`
-  ];
+  const sections = [`**${title}**\n${participantLine}`];
+  sections.push(`**Leaderboard**\n${wrapCodeBlock(`${summary}${suffix}`)}`);
 
   const roundLocations = formatRoundLocations(daily.roundLocations);
   if (roundLocations) {
