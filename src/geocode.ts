@@ -41,6 +41,7 @@ const DEFAULT_USER_AGENT = "GeoGuessrDiscordBot/1.0";
 const DEFAULT_DELAY_MS = 1100;
 const DEFAULT_CACHE_PATH = ".cache/geocode.json";
 const DEFAULT_ZOOM = 10;
+const DEFAULT_LANGUAGE = "en-US";
 
 function pickLocality(address?: NominatimAddress): string | undefined {
   if (!address) {
@@ -244,6 +245,7 @@ export async function enrichDailyChallengeResultsWithLocations(
   const resolvedDelayMs = options.delayMs ?? DEFAULT_DELAY_MS;
   const cachePath = options.cachePath ?? DEFAULT_CACHE_PATH;
   const resolvedZoom = options.zoom ?? DEFAULT_ZOOM;
+  const resolvedLanguage = options.language ?? DEFAULT_LANGUAGE;
 
   const cache = await loadCache(cachePath);
 
@@ -264,7 +266,7 @@ export async function enrichDailyChallengeResultsWithLocations(
       baseUrl: resolvedBaseUrl,
       userAgent: resolvedUserAgent,
       email: options.email,
-      language: options.language,
+      language: resolvedLanguage,
       zoom: resolvedZoom
     });
 
@@ -281,7 +283,7 @@ export async function enrichDailyChallengeResultsWithLocations(
       baseUrl: resolvedBaseUrl,
       userAgent: resolvedUserAgent,
       email: options.email,
-      language: options.language,
+      language: resolvedLanguage,
       delayMs: resolvedDelayMs
     });
   }
