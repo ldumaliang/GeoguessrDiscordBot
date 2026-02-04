@@ -82,7 +82,7 @@ Env config:
 - `NOMINATIM_BASE_URL` (optional override)
 - `NOMINATIM_USER_AGENT` (required by Nominatim usage policy)
 - `NOMINATIM_EMAIL` (optional)
-- `NOMINATIM_LANGUAGE` (optional, e.g. `en`)
+- `NOMINATIM_LANGUAGE` (default: `en-US`)
 - `NOMINATIM_DELAY_MS` (default: 1100)
 - `NOMINATIM_CACHE_PATH` (default: `.cache/geocode.json`)
 - `NOMINATIM_ZOOM` (default: 10; 10 ~= city-level)
