@@ -5,9 +5,12 @@ import { fetchDailyChallengeResults } from "./geoguessr.js";
 import { postDiscordMessage } from "./discord.js";
 import { buildLeaderboardMessage } from "./format.js";
 import { enrichDailyChallengeResultsWithLocations } from "./geocode.js";
+import { recordDailyScores, parseHistoryFormat } from "./history.js";
 
 const CACHE_DIR = ".cache";
 const CACHE_FILE = "last_token.txt";
+const DEFAULT_SCORE_HISTORY_PATH = "data/score-history.csv";
+const DEFAULT_SCORE_HISTORY_FORMAT = "csv";
 
 function getAuthCookie(): string {
   const ncfaToken = process.env.NCFA_TOKEN?.trim();
@@ -78,6 +81,11 @@ function parseBoolEnv(name: string, fallback: boolean): boolean {
   throw new Error(`Invalid ${name} value. Expected a boolean.`);
 }
 
+function getOptionalEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
 async function readLastToken(): Promise<string | null> {
   try {
     const content = await readFile(join(CACHE_DIR, CACHE_FILE), "utf8");
@@ -115,13 +123,20 @@ async function run(): Promise<void> {
 
   await enrichDailyChallengeResultsWithLocations(daily, {
     enabled: parseBoolEnv("GEOCODE_LOCATIONS", true),
-    baseUrl: process.env.NOMINATIM_BASE_URL?.trim(),
-    userAgent: process.env.NOMINATIM_USER_AGENT?.trim(),
-    email: process.env.NOMINATIM_EMAIL?.trim(),
-    language: process.env.NOMINATIM_LANGUAGE?.trim(),
+    baseUrl: getOptionalEnv("NOMINATIM_BASE_URL"),
+    userAgent: getOptionalEnv("NOMINATIM_USER_AGENT"),
+    email: getOptionalEnv("NOMINATIM_EMAIL"),
+    language: getOptionalEnv("NOMINATIM_LANGUAGE"),
     delayMs: parseOptionalIntEnv("NOMINATIM_DELAY_MS", 0, 10000),
-    cachePath: process.env.NOMINATIM_CACHE_PATH?.trim(),
+    cachePath: getOptionalEnv("NOMINATIM_CACHE_PATH"),
     zoom: parseOptionalIntEnv("NOMINATIM_ZOOM", 0, 18)
+  });
+
+  await recordDailyScores(daily, {
+    path: getOptionalEnv("SCORE_HISTORY_PATH") ?? DEFAULT_SCORE_HISTORY_PATH,
+    format:
+      parseHistoryFormat(getOptionalEnv("SCORE_HISTORY_FORMAT")) ??
+      DEFAULT_SCORE_HISTORY_FORMAT
   });
 
   const cacheKey = daily.challengeToken ?? daily.date;

@@ -8,6 +8,7 @@ Fetch today’s GeoGuessr Daily Challenge friends leaderboard and post it to a D
 - Discord webhook post with a clean, table-like message plus per-round details when available.
 - Retries with exponential backoff for transient errors (429/5xx).
 - Optional idempotency via a cached daily token.
+- Optional score history export to JSON or CSV for GitHub Actions storage.
 - Scheduled daily via GitHub Actions.
 
 ## Prerequisites
@@ -87,26 +88,21 @@ Env config:
 - `NOMINATIM_CACHE_PATH` (default: `.cache/geocode.json`)
 - `NOMINATIM_ZOOM` (default: 10; 10 ~= city-level)
 
-## Project Structure
+### Score History Export (Git Repo Storage)
 
-```
-.
-├── .cache/                # cached token for idempotency
-├── .github/workflows/
-│   └── daily.yml
-├── AGENTS.md
-├── src/
-│   ├── discord.ts
-│   ├── format.ts
-│   ├── geoguessr.ts
-│   ├── index.ts
-│   └── simulate.ts
-├── endpoint-samples/
-│   └── README.md
-├── .env.example
-├── package.json
-└── tsconfig.json
-```
+You can persist daily scores to a JSON or CSV file and commit it back to the repo
+from GitHub Actions. The history file is updated once per day (same date overwrites).
+History export only runs for live executions, not the simulate harness.
+
+Env config:
+- `SCORE_HISTORY_PATH` (default: `data/score-history.csv`)
+- `SCORE_HISTORY_FORMAT` (default: `csv`; accepts `json` or `csv`)
+
+GitHub Actions setup:
+1. Grant workflow permissions to write contents.
+2. (Optional) Override `SCORE_HISTORY_PATH` if you want a different file path.
+3. (Optional) Override `SCORE_HISTORY_FORMAT` if you want JSON output.
+4. Keep the commit step enabled so history updates are written and pushed.
 
 ## Agent Rules
 
