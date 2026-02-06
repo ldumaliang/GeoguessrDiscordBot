@@ -196,14 +196,15 @@ function getTargetChallengeDay(
 ): string {
   const offsetMs = (closeHourUtc * 60 + closeMinuteUtc) * 60 * 1000;
   const shifted = new Date(now.getTime() - offsetMs);
-  const target = new Date(
+  return new Date(
     Date.UTC(
       shifted.getUTCFullYear(),
       shifted.getUTCMonth(),
-      shifted.getUTCDate() - 1
+      shifted.getUTCDate()
     )
-  );
-  return target.toISOString().slice(0, 10);
+  )
+    .toISOString()
+    .slice(0, 10);
 }
 
 async function fetchProfile(cookie: string): Promise<FriendSummary> {
