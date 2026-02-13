@@ -200,7 +200,7 @@ function getTargetChallengeDay(
     Date.UTC(
       shifted.getUTCFullYear(),
       shifted.getUTCMonth(),
-      shifted.getUTCDate()
+      shifted.getUTCDate() - 1
     )
   )
     .toISOString()
