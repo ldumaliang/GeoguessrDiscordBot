@@ -116,7 +116,7 @@ export function buildLeaderboardMessage(daily: DailyChallengeResults): string {
   const title = `GeoGuessr Daily - Friends (${daily.date})`;
   const participantLine = `Friends played: ${daily.results.length}`;
 
-  if (daily.results.length === 0) {W
+  if (daily.results.length === 0) {
     return `${title}\n${participantLine}\nNo friends completed this Daily.`;
   }
 
